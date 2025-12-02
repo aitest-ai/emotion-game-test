@@ -2,13 +2,13 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Code Nexus</title>
+    <title>Code Nexus v13.1: 錯誤診斷版</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
-        /* === 樣式保持 v12.0 的固定版面設計 (不贅述 CSS 細節以節省篇幅，完全沿用) === */
+        /* === 樣式保持 v13.0 的固定版面設計 === */
         :root { --bg-color: #050505; --panel-bg: #101010; --accent: #00ff9d; --accent-dim: #005533; --danger: #ff3333; --warning: #ffcc00; --text: #e0e0e0; --border: #333; }
         body { background: var(--bg-color); color: var(--text); font-family: 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
@@ -64,7 +64,7 @@
     <!-- 登入層 -->
     <div id="login-overlay" class="overlay" style="display:flex;">
         <div class="login-box">
-            <h2 style="color:var(--accent);">CODE NEXUS</h2>
+            <h2 style="color:var(--accent);">CODE NEXUS v13.1</h2>
             <p style="color:#888;">請輸入學號啟動系統</p>
             <input type="text" id="student-id-input" placeholder="學號" style="text-align:center;">
             <button class="btn-action" onclick="loginSystem()" style="width:100%;">啟動系統 ▶</button>
@@ -88,7 +88,7 @@
 
     <!-- 左側面板 -->
     <div class="panel-left">
-        <div class="header">NEXUS v13.0</div>
+        <div class="header">NEXUS v13.1</div>
         <div id="display-student-id" style="text-align:center; color:#888; margin-bottom:10px;">未登入</div>
         <div class="cam-box"><video id="video" autoplay muted playsinline></video></div>
         <div class="status-box">
@@ -200,13 +200,10 @@ else:
 
     <script>
         // ==========================================
-        // 🛠️ 使用者設定區 (需求 2)
+        // 🛠️ 設定區
         // ==========================================
-        
-        // 1. 這裡填入剛剛部署的 GAS 網址 (務必填寫)
         const GAS_URL = "https://script.google.com/macros/s/AKfycbz-LNfOJtLqq7WvRQJ2mNOfZKoL0zUKaF6NjZwz-4XGDYplAIHFKkluEjTCQ4QuTUKQDA/exec"; 
 
-        // 2. 設定 AI 聊天風格 (Prompt)
         const PROMPT_CHAT_STYLE = `
         你是一位風趣幽默、擅長用駭客術語的程式導師。
         請用繁體中文回答，並且回答要簡短有力 (50字以內)。
@@ -214,7 +211,6 @@ else:
         但是要考量學生的學習狀況還有跟你對話的語氣，不要過渡刺激學生，要真的可以讓他理解現在的任務內容，也可以適當提供一些提示給他
         `;
 
-        // 3. 設定 AI 在治療模式(壓力過大)時的安撫風格
         const PROMPT_THERAPY_STYLE = `
         使用者現在壓力指數過高 (Stress Level > 85%)，處於焦慮狀態。
         請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。
@@ -327,22 +323,29 @@ else:
             } catch (err) { outputBox.innerText += "Error:\n" + err; }
         }
 
-        // 代理呼叫 Gemini (需求 3: Key 不在外露)
+        // === 關鍵修改：增強版 callGemini 用於顯示錯誤 ===
         async function callGemini(userText, systemPrompt) {
-            if(!GAS_URL.startsWith("http")) return "API URL Error";
+            if(!GAS_URL.startsWith("http")) return "API URL Error: 請填寫 GAS_URL";
             const fullPrompt = systemPrompt + "\n\n使用者說：" + userText;
             
             try {
                 const res = await fetch(GAS_URL, {
-                    method: 'POST', mode: 'cors', // 這裡用 cors 因為我們要讀取回傳值
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 避免 OPTIONS 預檢失敗
+                    method: 'POST', mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ type: 'CALL_GEMINI', prompt: fullPrompt })
                 });
                 const json = await res.json();
-                return json.text || "AI 無回應";
+                
+                // 顯示後端錯誤
+                if (json.status === 'error') {
+                    console.error("後端錯誤:", json.message);
+                    return "❌ 系統錯誤: " + json.message;
+                }
+                
+                return json.text || "⚠️ AI 無回應 (API 正常但內容為空)";
             } catch(e) { 
                 console.error(e);
-                return "連線錯誤 (請檢查 Apps Script 部署)"; 
+                return "❌ 連線錯誤: " + e.toString(); 
             }
         }
 
@@ -354,24 +357,16 @@ else:
             box.appendChild(div); box.scrollTop=box.scrollHeight;
             document.getElementById('chat-input').value="";
             
-            // 記錄互動 (需求 1: Log 只記動作)
             log('CHAT', 'Interaction with AI'); 
-
-            // 呼叫後端 API (需求 2: 使用設定好的 Prompt)
             const r = await callGemini(v, PROMPT_CHAT_STYLE);
             typeWriterMsg('ai', r);
-
-            // 記錄完整對話 (需求 1: 完整內容存到 CHAT_LOG)
             sendToGAS({ type: 'CHAT_LOG', studentId, userMsg: v, aiMsg: r });
         }
 
         async function triggerTherapy() {
             if(isPaused) return; isPaused = true;
             document.getElementById('therapy-overlay').style.display='flex';
-            
-            // 需求 2: 使用設定好的 Therapy Prompt
             const r = await callGemini("System Alert: User Stress High", PROMPT_THERAPY_STYLE);
-            
             const txt = document.getElementById('therapy-text');
             txt.innerText = "";
             let i = 0;
@@ -381,7 +376,6 @@ else:
             }, 30);
         }
 
-        // 其他功能 (維持原樣)
         function switchPhase(phase) {
             tabSwitchCount++; currentPhase = phase;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -472,7 +466,6 @@ else:
             div.innerText=`[${new Date().toLocaleTimeString()}] ${type}: ${detail}`;
             box.appendChild(div); box.scrollTop=box.scrollHeight;
             if(type !== 'ACT' && type !== 'CHAT') sendToGAS({ type:'LOG', studentId, action:type, detail });
-            // CHAT 已經由 sendChat 函數獨立發送，所以這裡排除
             if(type === 'CHAT') sendToGAS({ type:'LOG', studentId, action:type, detail:'User interacted with AI' }); 
         }
         function stopTherapy() { document.getElementById('therapy-overlay').style.display='none'; stressScore=40; isPaused=false; }
