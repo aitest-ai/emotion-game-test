@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Code Nexus v10.0: UI 固定版</title>
+    <title>Code Nexus v11.0: 穩定佈局與行為感知版</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -13,22 +13,17 @@
             --danger: #ff3333; --warning: #ffcc00; --text: #e0e0e0; --border: #333;
         }
         
-        /* 頁面佈局鎖定 */
+        /* 全局設定：禁止 Body 捲動，完全交由內部區塊處理 */
         body { background: var(--bg-color); color: var(--text); font-family: 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* === 左側面板 (固定寬度, 高度滿) === */
+        /* === 左側面板 === */
         .panel-left { 
             width: 320px; min-width: 320px; 
             background: var(--panel-bg); border-right: 1px solid var(--border); 
             padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; 
         }
 
-        /* 視訊區塊 (強制固定高度) */
-        .cam-box { 
-            flex: 0 0 200px; /* 固定不縮放 */
-            background: #000; border: 2px solid var(--accent); border-radius: 6px; 
-            overflow: hidden; position: relative; margin-bottom: 10px; 
-        }
+        .cam-box { flex: 0 0 200px; background: #000; border: 2px solid var(--accent); border-radius: 6px; overflow: hidden; position: relative; margin-bottom: 10px; }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
         .status-box { flex: 0 0 auto; background: #1a1a1a; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #333; font-size: 0.9em; }
@@ -37,73 +32,76 @@
         .stress-bar-bg { height: 6px; background: #333; border-radius: 3px; margin-top: 5px; overflow: hidden; }
         .stress-bar { height: 100%; width: 0%; background: var(--accent); transition: width 0.5s; }
 
-        /* Log (自動填滿剩餘空間，內部捲動) */
         .log-header { flex: 0 0 auto; font-size: 0.8em; color: #666; margin-bottom: 5px; }
         #log-box { 
-            flex: 1 1 auto; /* 佔滿剩餘 */
+            flex: 1 1 auto; /* 自動填滿剩餘高度 */
             background: #000; padding: 5px; font-family: monospace; font-size: 0.75em; color: #888; 
             overflow-y: auto; /* 內部捲動 */
             border: 1px solid #333; 
         }
         .log-entry { margin-bottom: 2px; border-bottom: 1px solid #222; padding-bottom: 2px; }
 
-        /* === 右側面板 (Flex Column) === */
+        /* === 右側面板 (關鍵修改：Flex Column 佈局) === */
         .panel-right { 
-            flex: 1; display: flex; flex-direction: column; 
-            padding: 20px; height: 100vh; box-sizing: border-box; overflow: hidden;
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; /* 確保高度撐滿 */
+            overflow: hidden; /* 防止整個右側出現捲軸 */
+            padding: 20px; 
+            box-sizing: border-box;
         }
 
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex: 0 0 auto; }
         .tab-btn { background: #222; border: 1px solid #444; color: #aaa; padding: 8px 15px; cursor: pointer; border-radius: 4px; transition: 0.3s; }
         .tab-btn.active { background: var(--accent-dim); color: white; border-color: var(--accent); }
 
-        /* 主要內容區 (佔滿中間，內部捲動) */
+        /* 主要內容區 (自動伸縮，內部捲動) */
         .content-area { 
-            display: none; flex-direction: column; flex: 1 1 auto; 
-            overflow-y: auto; /* 關鍵：只有內容區會捲動 */
-            padding-right: 5px; /* 給卷軸一點空間 */
-            animation: fadeIn 0.3s; 
+            display: none; 
+            flex-direction: column; 
+            flex: 1; /* 關鍵：佔據除了 Tab 和 Chat 之外的所有空間 */
+            overflow-y: auto; /* 內容多時自己捲動，不推擠別人 */
+            padding-right: 5px; 
+            margin-bottom: 10px; /* 與聊天室的間距 */
         }
         .content-area.active { display: flex; }
-        @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
 
-        /* 輸入框與編輯器 */
+        /* 輸入元件 */
         input, textarea, select { width: 100%; background: #1a1a1a; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px; }
-        textarea { resize: vertical; font-family: monospace; }
-        
-        .editor-container { 
-            flex: 1 1 300px; /* 彈性高度 */
-            display: flex; flex-direction: column; 
-            border: 1px solid #333; border-radius: 6px; overflow: hidden; margin-bottom: 10px;
-        }
-        #code-editor { flex: 1; background: #0c0c0c; color: #ddd; padding: 15px; border:none; outline:none; font-family: 'Consolas', monospace; font-size:14px; resize:none; }
-        
-        .btn-action { background: var(--accent-dim); color: white; border: 1px solid var(--accent); padding: 8px 20px; cursor: pointer; border-radius: 4px; flex: 0 0 auto; }
+        .editor-container { flex: 1; min-height: 200px; display: flex; flex-direction: column; border: 1px solid #333; border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+        #code-editor { flex: 1; background: #0c0c0c; color: #ddd; padding: 15px; border:none; outline:none; font-family: 'Consolas', monospace; resize:none; }
+        .btn-action { background: var(--accent-dim); color: white; border: 1px solid var(--accent); padding: 8px 20px; cursor: pointer; border-radius: 4px; }
         .btn-action:hover { background: var(--accent); color: black; }
-        
-        #output { height: 100px; background: #000; color: #aaa; padding: 10px; font-family: monospace; border-top: 1px solid #333; overflow-y: auto; white-space: pre-wrap; flex: 0 0 100px;}
 
-        /* AI 評分表格 (固定樣式) */
+        /* AI 回饋表格 */
         .score-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
         .score-table td, .score-table th { border: 1px solid #333; padding: 8px; text-align: center; vertical-align: middle; }
         .score-table th { background: #222; color: var(--accent); width: 20%; }
-        .score-table td.comment-cell { text-align: left; vertical-align: top; white-space: pre-wrap; height: 100px;}
+        .score-table td.comment-cell { text-align: left; vertical-align: top; white-space: pre-wrap; height: 80px;}
 
-        /* 底部聊天室 (固定高度) */
+        /* === 聊天室 (固定高度，內部捲動) === */
         #chat-panel { 
-            flex: 0 0 180px; /* 固定高度 */
-            border-top: 1px solid #333; background: #080808; 
-            display: flex; flex-direction: column; padding: 10px; margin-top: 10px; 
+            flex: 0 0 200px; /* 固定高度 200px */
+            border-top: 1px solid #333; 
+            background: #080808; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 10px; 
         }
-        #chat-msgs { flex: 1; overflow-y: auto; margin-bottom: 10px; }
-        .msg { padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9em; max-width: 90%; }
+        #chat-msgs { 
+            flex: 1; /* 佔滿 panel 內剩餘空間 */
+            overflow-y: auto; /* 訊息多時內部捲動 */
+            margin-bottom: 10px; 
+            min-height: 0; /* Flexbox 必備，防止內容溢出 */
+        }
+        .msg { padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9em; max-width: 90%; word-wrap: break-word; }
+        .msg.ai { color: var(--accent); background: #112211; border-left: 3px solid var(--accent); align-self: flex-start; }
+        .msg.user { color: #fff; background: #004455; align-self: flex-end; }
         
         /* 打字機光標 */
         .typing-cursor::after { content: '▋'; animation: blink 1s infinite; color: var(--accent); }
         @keyframes blink { 0%, 100% {opacity: 1;} 50% {opacity: 0;} }
-
-        .msg.ai { color: var(--accent); background: #112211; border-left: 3px solid var(--accent); align-self: flex-start; }
-        .msg.user { color: #fff; background: #004455; align-self: flex-end; }
 
         /* 覆蓋層 */
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,5,0.95); z-index: 1000; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
@@ -116,10 +114,10 @@
 </head>
 <body>
 
-    <!-- 覆蓋層們 -->
+    <!-- 覆蓋層 -->
     <div id="login-overlay" class="overlay" style="display:flex;">
         <div class="login-box">
-            <h2 style="color:var(--accent);">CODE NEXUS v10.0</h2>
+            <h2 style="color:var(--accent);">CODE NEXUS v11.0</h2>
             <p style="color:#888;">請輸入學號啟動系統</p>
             <input type="text" id="student-id-input" placeholder="學號" style="text-align:center;">
             <button class="btn-action" onclick="loginSystem()" style="width:100%;">啟動系統 ▶</button>
@@ -134,14 +132,14 @@
 
     <div id="therapy-overlay" class="overlay">
         <h2 style="color:var(--danger)">⚠️ 壓力過載</h2>
-        <p>請深呼吸，休息一下。</p>
+        <p>偵測到高度焦慮行為 (過動/亂按)。請休息。</p>
         <div id="therapy-text" style="color:#fff; margin:20px 0; font-size:1.2em;">載入中...</div>
         <button class="btn-action" id="btn-resume" onclick="stopTherapy()" style="opacity:0;">繼續任務</button>
     </div>
 
     <!-- 左側面板 -->
     <div class="panel-left">
-        <div class="header">NEXUS v10.0</div>
+        <div class="header">NEXUS v11.0</div>
         <div id="display-student-id" style="text-align:center; color:#888; margin-bottom:10px;">未登入</div>
         
         <div class="cam-box"><video id="video" autoplay muted playsinline></video></div>
@@ -149,7 +147,7 @@
         <div class="status-box">
             <div class="metric-row"><span>情緒:</span> <span id="emo-val" class="val">--</span></div>
             <div class="metric-row"><span>狀態:</span> <span id="act-val" class="val" style="color:gray">正常</span></div>
-            <div style="margin-top:5px; font-size:0.8em; color:gray;">壓力指數 (Stress)</div>
+            <div style="margin-top:5px; font-size:0.8em; color:gray;">學習壓力 (Stress Level)</div>
             <div class="stress-bar-bg"><div id="stress-bar" class="stress-bar"></div></div>
         </div>
         
@@ -171,7 +169,7 @@
         <div id="phase-learning" class="content-area active">
             <div style="background:#151515; padding:20px; border-radius:8px; border-left:4px solid var(--accent);">
                 <h2>📝 單元：Python 條件判斷</h2>
-                <p>請閱讀以下教材：</p>
+                <p>請仔細閱讀以下教材：</p>
                 <pre style="background:#222; padding:10px; color:#aaa;">
 score = 80
 if score >= 60:
@@ -179,6 +177,7 @@ if score >= 60:
 else:
     print("Fail")
                 </pre>
+                <p>這段程式碼展示了如何使用 if-else 結構來判斷分數是否及格。</p>
                 <button class="btn-action" onclick="finishLearning()">✅ 閱讀完畢</button>
             </div>
         </div>
@@ -190,9 +189,8 @@ else:
             <label>參考解答代碼</label>
             <div class="editor-container">
                 <textarea id="code-editor" placeholder="# 請在此輸入解答..."></textarea>
-                <div id="output">等待執行...</div>
             </div>
-            <div style="display:flex; justify-content:space-between;">
+            <div style="display:flex; justify-content:space-between; margin-top:10px;">
                  <button class="btn-action" style="background:#444;" onclick="runPython()">▶ 測試代碼</button>
                  <button class="btn-action" onclick="finishPosing()">暫存並下一步 ➡</button>
             </div>
@@ -211,9 +209,7 @@ else:
                 <hr style="border-color:#333; margin:15px 0;">
                 
                 <table class="score-table">
-                    <tr>
-                        <th>題目正確</th><th>複雜度</th><th>實用性</th><th>代碼正確</th><th>可讀性</th>
-                    </tr>
+                    <tr><th>正確</th><th>複雜</th><th>實用</th><th>代碼</th><th>可讀</th></tr>
                     <tr>
                         <td><input type="number" id="hr-s1" min="1" max="5" value="3"></td>
                         <td><input type="number" id="hr-s2" min="1" max="5" value="3"></td>
@@ -227,14 +223,14 @@ else:
             </div>
         </div>
 
-        <!-- 4. AI 評我 (UI 還原為表格) -->
+        <!-- 4. AI 評我 -->
         <div id="phase-ai-review" class="content-area">
             <h3>🤖 AI 評分你的題目</h3>
             <button class="btn-action" onclick="triggerAIReview()">啟動 AI 評分</button>
             
-            <div id="ai-result" style="display:none; margin-top:15px; animation:fadeIn 1s;">
+            <div id="ai-result" style="display:none; margin-top:15px;">
                 <table class="score-table">
-                    <tr><th>向度</th><th>得分 (1-4)</th><th>AI 評語</th></tr>
+                    <tr><th>向度</th><th>得分</th><th>AI 評語</th></tr>
                     <tr><td>題目正確</td><td id="ai-s1">-</td><td rowspan="5" id="ai-comment-cell" class="comment-cell"></td></tr>
                     <tr><td>複雜度</td><td id="ai-s2">-</td></tr>
                     <tr><td>實用性</td><td id="ai-s3">-</td></tr>
@@ -249,12 +245,12 @@ else:
         <!-- 5. 反思 -->
         <div id="phase-reflection" class="content-area">
             <h3>🤔 學習反思</h3>
-            <p>根據 AI 的回饋，你學到了什麼？</p>
+            <p>根據 AI 與同儕的回饋，你學到了什麼？</p>
             <textarea id="rf-content" style="height:150px;"></textarea>
-            <button class="btn-action" onclick="submitAll()">✅ 提交本單元所有成果</button>
+            <button class="btn-action" onclick="submitAll()">✅ 提交所有成果</button>
         </div>
 
-        <!-- 聊天室 -->
+        <!-- 聊天室 (固定底部) -->
         <div id="chat-panel">
             <div id="chat-msgs"></div>
             <div style="display:flex; gap:10px;">
@@ -266,7 +262,7 @@ else:
 
     <script>
         // ================= CONFIG =================
-        const API_KEY = "AIzaSyBkm9yIrb-DKXGUgfrFa5wCJKcm4TqQ1TwY";
+        const API_KEY = "AIzaSyBkm9yIrb-DKXGUgfrFa5wCJKcm4TqQ1Tw";
         const GAS_URL = "https://script.google.com/macros/s/AKfycbyhCVshR6q1Oo5ntp062zIzGyWuD_Xfb2ZVsz_tR7F9LJ2AekV3Zfv-nprhmcPMTUfr/exec"; 
         // ==========================================
 
@@ -284,6 +280,10 @@ else:
         let tabSwitchCount = 0;
         let faceMissingDuration = 0;
         let learningStartTime = 0;
+        
+        // 修正重點 2: 行為計數器
+        let mouseDist = 0, lastMouseX = 0, lastMouseY = 0;
+        let backspaceCount = 0;
 
         function loginSystem() {
             const id = document.getElementById('student-id-input').value.trim();
@@ -296,7 +296,6 @@ else:
 
         async function init() {
             log('SYS', '系統啟動');
-            // Face API
             const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
             await Promise.all([
                 faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -304,42 +303,49 @@ else:
             ]);
             isFaceLoaded = true;
             
-            // Webcam
             const video = document.getElementById('video');
             const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
             video.srcObject = stream;
             video.addEventListener('play', () => setInterval(monitorLoop, 1000));
             
-            // Pyodide
             try { pyodide = await loadPyodide(); log('SYS','Python Ready'); } catch(e){}
 
-            // Reset tab count
-            setInterval(() => { tabSwitchCount = 0; }, 5000);
+            // 輸入事件監聽 (修正重點 2)
+            document.addEventListener('mousemove', (e) => {
+                if(lastMouseX !== 0) {
+                    mouseDist += Math.sqrt(Math.pow(e.clientX - lastMouseX, 2) + Math.pow(e.clientY - lastMouseY, 2));
+                }
+                lastMouseX = e.clientX; lastMouseY = e.clientY;
+            });
+            document.addEventListener('keydown', (e) => {
+                if(e.key === 'Backspace') backspaceCount++;
+            });
 
+            setInterval(() => { tabSwitchCount = 0; }, 5000); // 5秒重置分頁計數
             typeWriterMsg('ai', `你好，我是你的 AI 夥伴。請開始學習。`);
             learningStartTime = Date.now();
         }
 
-        // ================= 監控 =================
+        // ================= 核心監控 (修正重點 2) =================
         async function monitorLoop() {
             if(isPaused) return;
 
-            // 1. 臉部
-            const video = document.getElementById('video');
-            let hasFace = false;
             let emoDelta = 0;
+            let actDelta = 0;
+            let status = "正常";
+            let statusClass = "val";
 
+            // 1. 臉部情緒
             if(isFaceLoaded) {
+                const video = document.getElementById('video');
                 const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
                 if(detections.length > 0) {
-                    hasFace = true;
                     faceMissingDuration = 0;
                     document.getElementById('face-lock-overlay').style.display = 'none';
-                    
                     const ex = detections[0].expressions;
                     const top = Object.entries(ex).sort((a,b) => b[1]-a[1])[0][0];
                     document.getElementById('emo-val').innerText = top;
-                    if(['sad', 'angry', 'fearful'].includes(top)) emoDelta = 5;
+                    if(['sad', 'angry', 'fearful'].includes(top)) emoDelta += 5;
                 } else {
                     faceMissingDuration++;
                     document.getElementById('emo-val').innerText = "訊號遺失";
@@ -347,16 +353,38 @@ else:
                 }
             }
 
-            // 2. 壓力
-            let actDelta = 0;
-            let status = "正常";
-            if(tabSwitchCount > 4) { actDelta = 10; status = "分心"; log('ACT','頻繁切換'); }
-            
-            document.getElementById('act-val').innerText = status;
-            document.getElementById('act-val').style.color = actDelta > 0 ? "yellow" : "gray";
+            // 2. 行為壓力 (修正：納入滑鼠與鍵盤)
+            // 閾值：滑鼠每秒移動超過4000px，或刪除鍵超過10次
+            if(mouseDist > 4000) {
+                actDelta += 10;
+                status = "滑鼠焦慮 (Mouse Jitter)";
+                statusClass = "val bad";
+                log('ACT', `Mouse Jitter Detected (Dist: ${Math.round(mouseDist)})`);
+            }
+            else if(backspaceCount > 10) {
+                actDelta += 10;
+                status = "鍵盤焦慮 (Typing Rage)";
+                statusClass = "val bad";
+                log('ACT', `Keyboard Rage Detected (Backspace: ${backspaceCount})`);
+            }
+            else if(tabSwitchCount > 4) {
+                actDelta += 10; 
+                status = "頻繁切換 (Distracted)"; 
+                statusClass = "val warn";
+                log('ACT', 'Frequent Tab Switching');
+            }
 
-            let total = emoDelta + actDelta;
-            if(total > 0) stressScore += total; else stressScore = Math.max(0, stressScore - 2);
+            // 重置計數器
+            mouseDist = 0; 
+            backspaceCount = 0;
+
+            document.getElementById('act-val').innerText = status;
+            document.getElementById('act-val').className = statusClass;
+
+            // 總壓力計算
+            let totalDelta = emoDelta + actDelta;
+            if(totalDelta > 0) stressScore += totalDelta;
+            else stressScore = Math.max(0, stressScore - 2);
 
             updateStressBar();
         }
@@ -365,15 +393,15 @@ else:
             stressScore = Math.min(100, stressScore);
             const bar = document.getElementById('stress-bar');
             bar.style.width = stressScore + "%";
+            
             if(stressScore > 85) { bar.style.background = "red"; triggerTherapy(); }
             else if(stressScore > 50) bar.style.background = "orange";
             else bar.style.background = "#00ff9d";
         }
 
-        // ================= 流程 =================
+        // ================= 流程邏輯 =================
         function switchPhase(phase) {
             tabSwitchCount++;
-            monitorLoop(); 
             currentPhase = phase;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.content-area').forEach(c => c.classList.remove('active'));
@@ -387,14 +415,14 @@ else:
 
         function finishLearning() {
             const sec = (Date.now() - learningStartTime)/1000;
-            if(sec < 5) { stressScore += 20; typeWriterMsg('ai', '讀太快了！請專心。'); return; }
+            if(sec < 5) { stressScore += 20; typeWriterMsg('ai', '讀太快了！請專心。(壓力值上升)'); return; }
             log('LN','完成');
             switchPhase('posing');
         }
 
         function finishPosing() {
             const t = document.getElementById('pp-title').value;
-            const c = document.getElementById('code-editor').value; // 用編輯器的值
+            const c = document.getElementById('code-editor').value;
             if(!t || !c) return alert("請填寫");
             sessionData.probTitle = t; sessionData.probDesc = document.getElementById('pp-desc').value; sessionData.probCode = c;
             log('PP','暫存');
@@ -405,7 +433,6 @@ else:
             const btn = document.querySelector('#phase-human-review button');
             btn.innerText = "連線中..."; btn.disabled = true;
             try {
-                // 加隨機數避免快取
                 const res = await fetch(`${GAS_URL}?studentId=${studentId}&t=${Date.now()}`);
                 const json = await res.json();
                 if(json.status === 'success') {
@@ -415,10 +442,8 @@ else:
                     document.getElementById('hr-code').innerText = p.code;
                     currentPeerProblemTitle = p.title;
                     document.getElementById('human-review-area').style.display = 'block';
-                    if(json.note) alert(json.note); // 提示這是測試題
-                } else {
-                    alert(json.message);
-                }
+                    if(json.note) alert(json.note); 
+                } else { alert(json.message); }
             } catch(e) { alert("連線失敗"); }
             btn.innerText = "📥 載入同儕挑戰"; btn.disabled = false;
         }
@@ -427,7 +452,6 @@ else:
             const s = [1,2,3,4,5].map(i=>document.getElementById(`hr-s${i}`).value);
             const c = document.getElementById('hr-comment').value;
             if(!c) return alert("請寫評語");
-            
             await sendToGAS({ type:'HUMAN_REVIEW', studentId, targetTitle:currentPeerProblemTitle, scores:s, comment:c });
             alert("評分已送出");
             document.getElementById('human-review-area').style.display='none';
@@ -437,17 +461,12 @@ else:
         async function triggerAIReview() {
             document.getElementById('ai-result').style.display='block';
             document.getElementById('ai-comment-cell').innerText = "AI 分析中...";
-            
             const prompt = `評分程式題。題目:${sessionData.probTitle},代碼:${sessionData.probCode}。請回傳JSON:{ "scores":[4,3,4,4,5], "comment":"評語" }。`;
             try {
                 const res = await callGemini(prompt);
                 const json = JSON.parse(extractJSON(res));
-                sessionData.aiScores = json.scores;
-                sessionData.aiComment = json.comment;
-                
+                sessionData.aiScores = json.scores; sessionData.aiComment = json.comment;
                 for(let i=0; i<5; i++) document.getElementById(`ai-s${i+1}`).innerText = json.scores[i];
-                
-                // 這裡只讓評語欄位有打字機效果，表格結構不動
                 document.getElementById('ai-comment-cell').innerText = "";
                 typeWriterText(document.getElementById('ai-comment-cell'), json.comment);
             } catch(e) { alert("AI Error"); }
@@ -486,23 +505,18 @@ else:
 
         async function runPython() {
             const c = document.getElementById('code-editor').value;
-            const o = document.getElementById('output');
-            o.innerText = "Running...";
+            // 這裡可以加入輸出視窗的顯示邏輯，目前簡化
             if(!pyodide) return;
-            try { pyodide.setStdout({batched:(m)=>o.innerText+=m+"\n"}); await pyodide.runPythonAsync(c); }
-            catch(e){ o.innerText="Error:"+e; }
+            try { await pyodide.runPythonAsync(c); } catch(e){}
         }
 
         async function sendChat() {
             const v = document.getElementById('chat-input').value;
             if(!v) return;
-            // 顯示使用者 (無特效)
             const box = document.getElementById('chat-msgs');
             const div = document.createElement('div'); div.className="msg user"; div.innerText=v;
             box.appendChild(div); box.scrollTop=box.scrollHeight;
             document.getElementById('chat-input').value="";
-            
-            // AI 回應
             const r = await callGemini(`你是老師。學生:${v}。簡短回覆。`);
             typeWriterMsg('ai', r);
         }
@@ -545,7 +559,6 @@ else:
             document.getElementById('therapy-overlay').style.display='none';
             stressScore=40; isPaused=false;
         }
-
     </script>
 </body>
 </html>
