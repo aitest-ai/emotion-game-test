@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
-        /* === 樣式保持 v13.0 的固定版面設計 === */
+        /* === 樣式完全沿用 v13.0 的固定版面設計 === */
         :root { --bg-color: #050505; --panel-bg: #101010; --accent: #00ff9d; --accent-dim: #005533; --danger: #ff3333; --warning: #ffcc00; --text: #e0e0e0; --border: #333; }
         body { background: var(--bg-color); color: var(--text); font-family: 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
@@ -61,7 +61,7 @@
 </head>
 <body>
 
-    <!-- 登入層 -->
+    <!-- 覆蓋層 -->
     <div id="login-overlay" class="overlay" style="display:flex;">
         <div class="login-box">
             <h2 style="color:var(--accent);">CODE NEXUS</h2>
@@ -71,24 +71,22 @@
         </div>
     </div>
 
-    <!-- 坐姿鎖定層 -->
     <div id="face-lock-overlay" class="overlay">
         <div class="lock-icon">⚠️</div>
         <h2 style="color:var(--warning);">系統暫停</h2>
         <p style="color:#ccc;">偵測不到臉部，請回到座位。</p>
     </div>
 
-    <!-- 治療模式層 -->
     <div id="therapy-overlay" class="overlay">
         <h2 style="color:var(--danger)">⚠️ 壓力過載</h2>
-        <p>系統偵測到過高壓力指數。請稍作休息。</p>
-        <div id="therapy-text" style="color:#fff; margin:20px 0; font-size:1.2em;">載入安撫訊息中...</div>
-        <button class="btn-action" id="btn-resume" onclick="stopTherapy()" style="opacity:0;">我冷靜好了 ▶</button>
+        <p>偵測到高度焦慮。請休息。</p>
+        <div id="therapy-text" style="color:#fff; margin:20px 0; font-size:1.2em;">載入中...</div>
+        <button class="btn-action" id="btn-resume" onclick="stopTherapy()" style="opacity:0;">繼續任務</button>
     </div>
 
     <!-- 左側面板 -->
     <div class="panel-left">
-        <div class="header">NEXUS v13.1</div>
+        <div class="header">NEXUS v14.0</div>
         <div id="display-student-id" style="text-align:center; color:#888; margin-bottom:10px;">未登入</div>
         <div class="cam-box"><video id="video" autoplay muted playsinline></video></div>
         <div class="status-box">
@@ -116,11 +114,13 @@
             <div style="background:#151515; padding:20px; border-radius:8px; border-left:4px solid var(--accent);">
                 <h2>📝 單元：Python 條件判斷</h2>
                 <p>請閱讀以下教材：</p>
-                <pre style="background:#222; padding:10px; color:#aaa;">score = 80
+                <pre style="background:#222; padding:10px; color:#aaa;">
+score = 80
 if score >= 60:
     print("Pass")
 else:
-    print("Fail")</pre>
+    print("Fail")
+                </pre>
                 <button class="btn-action" onclick="finishLearning()">✅ 閱讀完畢</button>
             </div>
         </div>
@@ -129,9 +129,9 @@ else:
         <div id="phase-posing" class="content-area">
             <label>題目名稱</label><input id="pp-title" placeholder="例如：判斷奇偶數">
             <label>題目敘述</label><textarea id="pp-desc" style="height:80px;"></textarea>
-            <label>參考解答代碼 & 測試</label>
+            <label>參考解答代碼</label>
             <div class="editor-container">
-                <textarea id="code-editor" placeholder="# Python 代碼...">print("Hello")</textarea>
+                <textarea id="code-editor" placeholder="# 請輸入解答代碼...">print("Hello")</textarea>
                 <div id="output">等待執行...</div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:10px;">
@@ -192,7 +192,7 @@ else:
         <div id="chat-panel">
             <div id="chat-msgs"></div>
             <div style="display:flex; gap:10px;">
-                <input id="chat-input" placeholder="輸入訊息..." onkeypress="if(event.key==='Enter') sendChat()">
+                <input id="chat-input" placeholder="跟智慧助教對話..." onkeypress="if(event.key==='Enter') sendChat()">
                 <button class="btn-action" onclick="sendChat()">發送</button>
             </div>
         </div>
@@ -200,20 +200,29 @@ else:
 
     <script>
         // ==========================================
-        // 🛠️ 設定區
+        // 🛠️ 設定與 Prompt 區
         // ==========================================
         const GAS_URL = "https://script.google.com/macros/s/AKfycbwXDnKYO7K0iZF2zugnWVi9MJa4-NNHzhp5SHeF9JUqoIEK-g4CIeA3pHyt4HNlzKA81Q/exec"; 
 
-        const PROMPT_CHAT_STYLE = `
-        你是一位風趣幽默、擅長用駭客術語的程式導師。
-        請用繁體中文回答，並且回答要簡短有力 (50字以內)。
-        如果學生問程式問題，請用引導的方式，不要直接給答案。
-        但是要考量學生的學習狀況還有跟你對話的語氣，不要過渡刺激學生，要真的可以讓他理解現在的任務內容，也可以適當提供一些提示給他
+        // 1. 嚴格評分標準 (Requirement 2: Strict Rubric)
+        const PROMPT_STRICT_GRADING = `
+        你現在是一位嚴格的電腦科學教授。請對學生的題目與代碼進行評分。
+        
+        【評分量表 (1-5分)】
+        5分 (優秀): 邏輯完美，考慮了邊界情況，代碼簡潔且有註解。
+        4分 (良好): 功能正確，但代碼可以更優化，或題目敘述不夠精確。
+        3分 (尚可): 能執行但有邏輯漏洞，沒有考量更多可能性。
+        2分 (待加強): 可能有部分錯誤或題目的內容太過簡單(如只印出一行字)
+        1分 (很糟): 語法錯誤無法執行，或題目與代碼不符。
+
+        請務必嚴格，不要給同情分。請回傳 JSON 格式。
         `;
 
+        // 2. 治療模式 Prompt
         const PROMPT_THERAPY_STYLE = `
-        使用者現在壓力指數過高 (Stress Level > 85%)，處於焦慮狀態。
+        使用者壓力指數過高 (Stress Level > 85%)，處於焦慮狀態。
         請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。
+        提醒他稍微休息一下，準備好了再繼續學習就好了，大家都會碰到瓶頸之類的。
         請用繁體中文。
         `;
 
@@ -244,27 +253,20 @@ else:
                 faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
             ]);
             isFaceLoaded = true;
-            
             const video = document.getElementById('video');
             const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
             video.srcObject = stream;
             video.addEventListener('play', () => setInterval(monitorLoop, 1000));
-            
-            try { 
-                pyodide = await loadPyodide(); 
-                log('SYS','Python Ready'); 
-            } catch(e){ log('ERR','Python Fail'); }
+            try { pyodide = await loadPyodide(); log('SYS','Python Ready'); } catch(e){ log('ERR','Python Fail'); }
 
             document.addEventListener('mousemove', (e) => {
                 if(lastMouseX !== 0) mouseDist += Math.sqrt(Math.pow(e.clientX - lastMouseX, 2) + Math.pow(e.clientY - lastMouseY, 2));
                 lastMouseX = e.clientX; lastMouseY = e.clientY;
             });
-            document.addEventListener('keydown', (e) => {
-                if(e.key === 'Backspace') backspaceCount++;
-            });
+            document.addEventListener('keydown', (e) => { if(e.key === 'Backspace') backspaceCount++; });
 
             setInterval(() => { tabSwitchCount = 0; }, 5000); 
-            typeWriterMsg('ai', `你好，我是你的 AI 夥伴。請開始學習。`);
+            typeWriterMsg('ai', `你好，我是你的 AI 助教。我會根據你的進度提供建議。`);
             learningStartTime = Date.now();
         }
 
@@ -290,8 +292,8 @@ else:
                 }
             }
 
-            if(mouseDist > 4000) { actDelta += 10; status = "滑鼠焦慮"; statusClass = "val bad"; log('ACT', `Mouse Jitter (${Math.round(mouseDist)})`); }
-            else if(backspaceCount > 10) { actDelta += 10; status = "鍵盤焦慮"; statusClass = "val bad"; log('ACT', `Keyboard Rage (${backspaceCount})`); }
+            if(mouseDist > 4000) { actDelta += 10; status = "滑鼠焦慮"; statusClass = "val bad"; log('ACT', `Mouse Jitter`); }
+            else if(backspaceCount > 10) { actDelta += 10; status = "鍵盤焦慮"; statusClass = "val bad"; log('ACT', `Keyboard Rage`); }
             else if(tabSwitchCount > 4) { actDelta += 10; status = "頻繁切換"; statusClass = "val warn"; log('ACT', 'Frequent Tab Switching'); }
 
             mouseDist = 0; backspaceCount = 0;
@@ -323,11 +325,79 @@ else:
             } catch (err) { outputBox.innerText += "Error:\n" + err; }
         }
 
-        // === 關鍵修改：增強版 callGemini 用於顯示錯誤 ===
-        async function callGemini(userText, systemPrompt) {
-            if(!GAS_URL.startsWith("http")) return "API URL Error: 請填寫 GAS_URL";
-            const fullPrompt = systemPrompt + "\n\n使用者說：" + userText;
+        // ==========================================
+        // 🧠 智慧對話核心 (Requirement 1: Context Aware)
+        // ==========================================
+        async function sendChat() {
+            const v = document.getElementById('chat-input').value;
+            if(!v) return;
             
+            const box = document.getElementById('chat-msgs');
+            const div = document.createElement('div'); div.className="msg user"; div.innerText=v;
+            box.appendChild(div); box.scrollTop=box.scrollHeight;
+            document.getElementById('chat-input').value="";
+            
+            log('CHAT', 'Interaction with AI'); 
+
+            // 1. 蒐集當前狀態 (Context)
+            const context = {
+                phase: currentPhase, // 目前在哪一頁
+                stress: stressScore, // 壓力值
+                currentCode: document.getElementById('code-editor').value || "(無)", // 學生寫的 code
+                currentProb: document.getElementById('pp-title').value || "(尚未擬題)" // 題目
+            };
+
+            // 2. 構建動態 System Prompt
+            const dynamicPrompt = `
+            你是一位智慧型程式助教。
+            【當前狀態】
+            - 學生正處於階段：${context.phase} (Learning=學習, Posing=擬題, Peer=互評)
+            - 學生壓力指數：${context.stress}% (若 > 80 請安撫)
+            - 學生目前的代碼草稿：
+            ${context.currentCode}
+            - 學生擬定的題目：${context.currentProb}
+
+            【你的任務】
+            請根據上述資訊回答學生的問題：${v}。
+            如果學生卡住了，請根據他的代碼給予「引導式提示」，不要直接給答案。
+            如果他在擬題階段，請檢查他的題目是否合理。
+            請用繁體中文，簡短有力。
+            `;
+
+            const r = await callGemini(v, dynamicPrompt); // 傳送組合好的 Prompt
+            typeWriterMsg('ai', r);
+            sendToGAS({ type: 'CHAT_LOG', studentId, userMsg: v, aiMsg: r });
+        }
+
+        async function triggerAIReview() {
+            document.getElementById('ai-result').style.display='block';
+            document.getElementById('ai-comment-cell').innerText = "AI 教授正在嚴格審查...";
+            
+            // 使用嚴格評分 Prompt (Requirement 2)
+            const prompt = `
+            ${PROMPT_STRICT_GRADING}
+            
+            題目：${sessionData.probTitle}
+            敘述：${sessionData.probDesc}
+            代碼：${sessionData.probCode}
+            
+            請回傳 JSON: { "scores":[分1,分2,分3,分4,分5], "comment":"嚴格評語" }。
+            `;
+            
+            try {
+                const r = await callGemini(prompt, "You are a JSON generator.");
+                const json = JSON.parse(extractJSON(r));
+                sessionData.aiScores = json.scores; sessionData.aiComment = json.comment;
+                for(let i=0; i<5; i++) document.getElementById(`ai-s${i+1}`).innerText = json.scores[i];
+                document.getElementById('ai-comment-cell').innerText = "";
+                typeWriterText(document.getElementById('ai-comment-cell'), json.comment);
+            } catch(e) { document.getElementById('ai-comment-cell').innerText = "AI 解析錯誤"; }
+        }
+
+        // 基本 API 呼叫
+        async function callGemini(userText, systemPrompt) {
+            if(!GAS_URL.startsWith("http")) return "API URL Error";
+            const fullPrompt = systemPrompt + "\n\n(User Input): " + userText;
             try {
                 const res = await fetch(GAS_URL, {
                     method: 'POST', mode: 'cors',
@@ -335,47 +405,21 @@ else:
                     body: JSON.stringify({ type: 'CALL_GEMINI', prompt: fullPrompt })
                 });
                 const json = await res.json();
-                
-                // 顯示後端錯誤
-                if (json.status === 'error') {
-                    console.error("後端錯誤:", json.message);
-                    return "❌ 系統錯誤: " + json.message;
-                }
-                
-                return json.text || "⚠️ AI 無回應 (API 正常但內容為空)";
-            } catch(e) { 
-                console.error(e);
-                return "❌ 連線錯誤: " + e.toString(); 
-            }
-        }
-
-        async function sendChat() {
-            const v = document.getElementById('chat-input').value;
-            if(!v) return;
-            const box = document.getElementById('chat-msgs');
-            const div = document.createElement('div'); div.className="msg user"; div.innerText=v;
-            box.appendChild(div); box.scrollTop=box.scrollHeight;
-            document.getElementById('chat-input').value="";
-            
-            log('CHAT', 'Interaction with AI'); 
-            const r = await callGemini(v, PROMPT_CHAT_STYLE);
-            typeWriterMsg('ai', r);
-            sendToGAS({ type: 'CHAT_LOG', studentId, userMsg: v, aiMsg: r });
+                return json.text || "AI 無回應";
+            } catch(e) { return "連線錯誤"; }
         }
 
         async function triggerTherapy() {
             if(isPaused) return; isPaused = true;
             document.getElementById('therapy-overlay').style.display='flex';
-            const r = await callGemini("System Alert: User Stress High", PROMPT_THERAPY_STYLE);
+            const r = await callGemini("System Alert: High Stress", PROMPT_THERAPY_STYLE);
             const txt = document.getElementById('therapy-text');
             txt.innerText = "";
             let i = 0;
-            const t = setInterval(()=>{
-                txt.innerText += r.charAt(i++);
-                if(i>=r.length) { clearInterval(t); document.getElementById('btn-resume').style.opacity='1'; }
-            }, 30);
+            const t = setInterval(()=>{ txt.innerText += r.charAt(i++); if(i>=r.length) { clearInterval(t); document.getElementById('btn-resume').style.opacity='1'; } }, 30);
         }
 
+        // 其他功能
         function switchPhase(phase) {
             tabSwitchCount++; currentPhase = phase;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -423,19 +467,6 @@ else:
             await sendToGAS({ type:'HUMAN_REVIEW', studentId, targetTitle:currentPeerProblemTitle, scores:s, comment:c });
             alert("評分已送出"); document.getElementById('human-review-area').style.display='none'; switchPhase('ai-review');
         }
-        async function triggerAIReview() {
-            document.getElementById('ai-result').style.display='block';
-            document.getElementById('ai-comment-cell').innerText = "AI 分析中...";
-            const prompt = `評分程式題。題目:${sessionData.probTitle},代碼:${sessionData.probCode}。請回傳JSON:{ "scores":[4,3,4,4,5], "comment":"評語" }。`;
-            const r = await callGemini(prompt, "你是一個嚴格的代碼評審員。請只回傳 JSON 格式。");
-            try {
-                const json = JSON.parse(extractJSON(r));
-                sessionData.aiScores = json.scores; sessionData.aiComment = json.comment;
-                for(let i=0; i<5; i++) document.getElementById(`ai-s${i+1}`).innerText = json.scores[i];
-                document.getElementById('ai-comment-cell').innerText = "";
-                typeWriterText(document.getElementById('ai-comment-cell'), json.comment);
-            } catch(e) { document.getElementById('ai-comment-cell').innerText = "AI 解析錯誤: " + r; }
-        }
         async function submitAll() {
             const r = document.getElementById('rf-content').value;
             if(!r) return alert("請寫反思");
@@ -448,11 +479,7 @@ else:
             const div = document.createElement('div'); div.className = `msg ${role} typing-cursor`;
             box.appendChild(div); box.scrollTop = box.scrollHeight;
             let i = 0;
-            const t = setInterval(()=>{
-                div.innerText += text.charAt(i++);
-                box.scrollTop = box.scrollHeight;
-                if(i>=text.length){ clearInterval(t); div.classList.remove('typing-cursor'); }
-            }, 30);
+            const t = setInterval(()=>{ div.innerText += text.charAt(i++); box.scrollTop = box.scrollHeight; if(i>=text.length){ clearInterval(t); div.classList.remove('typing-cursor'); } }, 30);
         }
         function typeWriterText(el, text) {
             let i = 0;
@@ -466,7 +493,6 @@ else:
             div.innerText=`[${new Date().toLocaleTimeString()}] ${type}: ${detail}`;
             box.appendChild(div); box.scrollTop=box.scrollHeight;
             if(type !== 'ACT' && type !== 'CHAT') sendToGAS({ type:'LOG', studentId, action:type, detail });
-            if(type === 'CHAT') sendToGAS({ type:'LOG', studentId, action:type, detail:'User interacted with AI' }); 
         }
         function stopTherapy() { document.getElementById('therapy-overlay').style.display='none'; stressScore=40; isPaused=false; }
     </script>
