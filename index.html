@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Code Nexus v14.1: Markdown 渲染版</title>
+    <title>Code Nexus</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -73,7 +73,7 @@
     <!-- 覆蓋層 -->
     <div id="login-overlay" class="overlay" style="display:flex;">
         <div class="login-box">
-            <h2 style="color:var(--accent);">CODE NEXUS v14.1</h2>
+            <h2 style="color:var(--accent);">CODE NEXUS</h2>
             <p style="color:#888;">請輸入學號啟動系統</p>
             <input type="text" id="student-id-input" placeholder="學號" style="text-align:center;">
             <button class="btn-action" onclick="loginSystem()" style="width:100%;">啟動系統 ▶</button>
@@ -95,7 +95,7 @@
 
     <!-- 左側面板 -->
     <div class="panel-left">
-        <div class="header">NEXUS v14.1</div>
+        <div class="header">NEXUS</div>
         <div id="display-student-id" style="text-align:center; color:#888; margin-bottom:10px;">未登入</div>
         <div class="cam-box"><video id="video" autoplay muted playsinline></video></div>
         <div class="status-box">
@@ -222,14 +222,14 @@ else:
 
         // Prompt 設定
         const PROMPT_STRICT_GRADING = `
-        你現在是一位嚴格的電腦科學教授。請對學生的題目與代碼進行評分。
+        你現在是一位電腦科學專家。請對學生的題目與代碼進行評分。
         【評分量表 (1-5分)】
         5分 (優秀): 邏輯完美，考慮了邊界情況，代碼簡潔且有註解。
         4分 (良好): 功能正確，但代碼可以更優化，或題目敘述不夠精確。
         3分 (尚可): 能執行但有邏輯漏洞，或題目太過簡單。
         2分 (待加強): 可能有部分錯誤。
         1分 (很糟): 語法錯誤無法執行，或題目與代碼不符。
-        請務必嚴格，不要給同情分。請回傳 JSON 格式。
+        請務必嚴格評分，不要給同情分，但是語氣可以溫和，給出有建設性的建議。請回傳 JSON 格式。
         `;
         const PROMPT_THERAPY_STYLE = `使用者壓力過大(Stress > 85%)。請講一個非常冷的工程師笑話，或用溫柔的語氣安撫他。請用繁體中文。`;
 
