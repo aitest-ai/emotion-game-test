@@ -3,16 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <title>Code Nexus</title>
+    <!-- 引入核心庫 -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
-        /* === 樣式完全沿用 v13.0 的固定版面設計 === */
+        /* === 全局基礎設定 === */
         :root { --bg-color: #050505; --panel-bg: #101010; --accent: #00ff9d; --accent-dim: #005533; --danger: #ff3333; --warning: #ffcc00; --text: #e0e0e0; --border: #333; }
         body { background: var(--bg-color); color: var(--text); font-family: 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        .panel-left { width: 320px; min-width: 320px; background: var(--panel-bg); border-right: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        /* === 左側面板 (固定寬度) === */
+        .panel-left { 
+            width: 320px; min-width: 320px; 
+            background: var(--panel-bg); border-right: 1px solid var(--border); 
+            padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; 
+        }
         .cam-box { flex: 0 0 200px; background: #000; border: 2px solid var(--accent); border-radius: 6px; overflow: hidden; position: relative; margin-bottom: 10px; }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         .status-box { flex: 0 0 auto; background: #1a1a1a; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #333; font-size: 0.9em; }
@@ -24,18 +30,65 @@
         #log-box { flex: 1 1 auto; background: #000; padding: 5px; font-family: monospace; font-size: 0.75em; color: #888; overflow-y: auto; border: 1px solid #333; }
         .log-entry { margin-bottom: 2px; border-bottom: 1px solid #222; padding-bottom: 2px; }
 
-        .panel-right { flex: 1; display: flex; flex-direction: column; padding: 20px; height: 100vh; box-sizing: border-box; overflow: hidden; }
+        /* === 右側面板 (關鍵佈局修正) === */
+        .panel-right { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; /* 垂直排列 */
+            height: 100vh; /* 佔滿全高 */
+            overflow: hidden; /* 禁止整體捲動 */
+            padding: 20px; 
+            box-sizing: border-box; 
+        }
+        
+        /* 1. 上方分頁標籤 */
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex: 0 0 auto; }
         .tab-btn { background: #222; border: 1px solid #444; color: #aaa; padding: 8px 15px; cursor: pointer; border-radius: 4px; transition: 0.3s; }
         .tab-btn.active { background: var(--accent-dim); color: white; border-color: var(--accent); }
-        .content-area { display: none; flex-direction: column; flex: 1 1 auto; overflow-y: auto; padding-right: 5px; margin-bottom: 10px; }
+
+        /* 2. 中間內容區 (自動填滿剩餘空間，內部捲動) */
+        .content-area { 
+            display: none; 
+            flex-direction: column; 
+            flex: 1; /* 自動佔用剩餘空間 */
+            min-height: 0; /* ★ 關鍵：防止內容過長撐開父容器 */
+            overflow-y: auto; /* 內容過多時顯示卷軸 */
+            padding-right: 5px; 
+            margin-bottom: 10px; 
+        }
         .content-area.active { display: flex; }
 
+        /* 3. 底部聊天室 (強制固定高度) */
+        #chat-panel { 
+            flex: 0 0 200px; /* 固定高度 200px，禁止縮放 */
+            height: 200px;   /* 明確指定高度 */
+            border-top: 1px solid #333; 
+            background: #080808; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 10px; 
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        #chat-msgs { 
+            flex: 1; /* 佔滿聊天室內部空間 */
+            overflow-y: auto; /* 訊息過多時內部捲動 */
+            margin-bottom: 10px; 
+            min-height: 0; /* ★ 關鍵 */
+        }
+
+        /* 其他元件樣式 */
         input, textarea, select { width: 100%; background: #1a1a1a; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px; }
         textarea { resize: vertical; font-family: monospace; }
-        .editor-container { flex: 0 0 250px; display: flex; flex-direction: column; border: 1px solid #333; border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+        
+        .editor-container { 
+            flex: 0 0 250px; /* 固定編輯器高度 */
+            display: flex; flex-direction: column; 
+            border: 1px solid #333; border-radius: 6px; overflow: hidden; margin-bottom: 10px; 
+        }
         #code-editor { flex: 1; background: #0c0c0c; color: #ddd; padding: 15px; border:none; outline:none; font-family: 'Consolas', monospace; resize:none; font-size: 14px; }
         #output { height: 100px; background: #000; color: #aaa; padding: 10px; font-family: monospace; border-top: 1px solid #333; overflow-y: auto; white-space: pre-wrap; }
+        
         .btn-action { background: var(--accent-dim); color: white; border: 1px solid var(--accent); padding: 8px 20px; cursor: pointer; border-radius: 4px; flex: 0 0 auto; }
         .btn-action:hover { background: var(--accent); color: black; }
 
@@ -44,14 +97,19 @@
         .score-table th { background: #222; color: var(--accent); width: 20%; }
         .score-table td.comment-cell { text-align: left; vertical-align: top; white-space: pre-wrap; height: 80px;}
 
-        #chat-panel { flex: 0 0 200px; border-top: 1px solid #333; background: #080808; display: flex; flex-direction: column; padding: 10px; }
-        #chat-msgs { flex: 1; overflow-y: auto; margin-bottom: 10px; min-height: 0; }
-        .msg { padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9em; max-width: 90%; word-wrap: break-word; }
+        /* 訊息樣式 & Markdown 修正 */
+        .msg { padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9em; max-width: 90%; word-wrap: break-word; line-height: 1.5; }
         .msg.ai { color: var(--accent); background: #112211; border-left: 3px solid var(--accent); align-self: flex-start; }
         .msg.user { color: #fff; background: #004455; align-self: flex-end; }
+        .msg p { margin: 0; padding: 0; display: inline-block; }
+        .msg strong { color: #fff; font-weight: bold; }
+        .msg code { background: #333; padding: 2px 4px; border-radius: 3px; font-family: monospace; color: #ff7b72; font-size: 0.9em;}
+        .msg pre { background: #222; padding: 8px; border-radius: 4px; overflow-x: auto; margin: 5px 0; display: block;}
+        .msg pre code { background: transparent; padding: 0; color: #ddd; }
         .typing-cursor::after { content: '▋'; animation: blink 1s infinite; color: var(--accent); }
         @keyframes blink { 0%, 100% {opacity: 1;} 50% {opacity: 0;} }
 
+        /* 覆蓋層 */
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,5,0.95); z-index: 1000; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         #face-lock-overlay { backdrop-filter: blur(10px); background: rgba(0,0,0,0.85); z-index: 3000; }
         .lock-icon { font-size: 50px; margin-bottom: 20px; animation: pulse 1s infinite; }
@@ -61,7 +119,7 @@
 </head>
 <body>
 
-    <!-- 覆蓋層 -->
+    <!-- 1. 登入層 -->
     <div id="login-overlay" class="overlay" style="display:flex;">
         <div class="login-box">
             <h2 style="color:var(--accent);">CODE NEXUS</h2>
@@ -71,12 +129,14 @@
         </div>
     </div>
 
+    <!-- 2. 坐姿鎖定層 -->
     <div id="face-lock-overlay" class="overlay">
         <div class="lock-icon">⚠️</div>
         <h2 style="color:var(--warning);">系統暫停</h2>
         <p style="color:#ccc;">偵測不到臉部，請回到座位。</p>
     </div>
 
+    <!-- 3. 治療模式層 -->
     <div id="therapy-overlay" class="overlay">
         <h2 style="color:var(--danger)">⚠️ 壓力過載</h2>
         <p>偵測到高度焦慮。請休息。</p>
@@ -101,6 +161,7 @@
 
     <!-- 右側面板 -->
     <div class="panel-right">
+        <!-- 分頁標籤 -->
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchPhase('learning')">1. 學習 (LN)</button>
             <button class="tab-btn" onclick="switchPhase('posing')">2. 擬題 (PP)</button>
@@ -109,7 +170,7 @@
             <button class="tab-btn" onclick="switchPhase('reflection')">5. 反思 (RF)</button>
         </div>
 
-        <!-- 學習區 -->
+        <!-- 1. 學習區 -->
         <div id="phase-learning" class="content-area active">
             <div style="background:#151515; padding:20px; border-radius:8px; border-left:4px solid var(--accent);">
                 <h2>📝 單元：Python 條件判斷</h2>
@@ -125,12 +186,13 @@ else:
             </div>
         </div>
 
-        <!-- 擬題區 -->
+        <!-- 2. 擬題區 (含 placeholder 修正) -->
         <div id="phase-posing" class="content-area">
-            <label>題目名稱</label><input id="pp-title" placeholder="例如：輸出 Hello World">
+            <label>題目名稱</label><input id="pp-title" placeholder="例如：判斷奇偶數">
             <label>題目敘述</label><textarea id="pp-desc" style="height:80px;"></textarea>
             <label>參考解答代碼</label>
             <div class="editor-container">
+                <!-- 修正：只使用 placeholder -->
                 <textarea id="code-editor" placeholder="print('Hello World')"></textarea>
                 <div id="output">等待執行...</div>
             </div>
@@ -140,7 +202,7 @@ else:
             </div>
         </div>
 
-        <!-- 評同儕區 -->
+        <!-- 3. 評同儕區 -->
         <div id="phase-human-review" class="content-area">
             <h3>👥 評分其他同學的題目</h3>
             <button class="btn-action" onclick="loadPeerProblem()" style="background:#444; margin-bottom:15px;">📥 載入同儕挑戰</button>
@@ -164,7 +226,7 @@ else:
             </div>
         </div>
 
-        <!-- AI 評我區 -->
+        <!-- 4. AI 評我區 -->
         <div id="phase-ai-review" class="content-area">
             <h3>🤖 AI 評分你的題目</h3>
             <button class="btn-action" onclick="triggerAIReview()">啟動 AI 評分</button>
@@ -181,14 +243,14 @@ else:
             </div>
         </div>
 
-        <!-- 反思區 -->
+        <!-- 5. 反思區 -->
         <div id="phase-reflection" class="content-area">
             <h3>🤔 學習反思</h3>
             <textarea id="rf-content" style="height:150px;"></textarea>
             <button class="btn-action" onclick="submitAll()">✅ 提交所有成果</button>
         </div>
 
-        <!-- 聊天室 -->
+        <!-- 聊天室 (固定底部) -->
         <div id="chat-panel">
             <div id="chat-msgs"></div>
             <div style="display:flex; gap:10px;">
@@ -199,34 +261,8 @@ else:
     </div>
 
     <script>
-        // ==========================================
-        // 🛠️ 設定與 Prompt 區
-        // ==========================================
+        // ================= CONFIG =================
         const GAS_URL = "https://script.google.com/macros/s/AKfycbyXc4ZQ857yI4MWlqIgN1zPgUwZRlmz2ZoXkehn-BweWyXQmcJhwTOR4IS-DzuoAnm0QA/exec"; 
-
-        // 1. 嚴格評分標準
-        const PROMPT_STRICT_GRADING = `
-        你現在是一位嚴格的電腦科學教授。請對學生的題目與代碼進行評分。
-        
-        【評分量表 (1-5分)】
-        5分 (優秀): 邏輯完美，考慮了邊界情況，代碼簡潔且有註解。
-        4分 (良好): 功能正確，但代碼可以更優化，或題目敘述不夠精確。
-        3分 (尚可): 能執行但有邏輯漏洞，沒有考量更多可能性。
-        2分 (待加強): 可能有部分錯誤或題目的內容太過簡單(如只印出一行字)
-        1分 (很糟): 語法錯誤無法執行，或題目與代碼不符。
-
-        請務必嚴格評分，不要給同情分，但是語氣可以溫和，給出有建設性的建議。請回傳 JSON 格式。
-        `;
-
-        // 2. 治療模式 Prompt (修正這裡的語法錯誤：使用反引號 ` )
-        const PROMPT_THERAPY_STYLE = `
-        使用者壓力指數過高 (Stress Level > 85%)，處於焦慮狀態。
-        請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。
-        提醒他稍微休息一下，準備好了再繼續學習就好了，大家都會碰到瓶頸之類的。
-        請用繁體中文。
-        `;
-
-        // ==========================================
 
         let studentId = "";
         let currentPhase = 'learning';
@@ -235,8 +271,23 @@ else:
         let currentPeerProblemTitle = "";
         let stressScore = 0, tabSwitchCount = 0, faceMissingDuration = 0, learningStartTime = 0;
         let mouseDist = 0, lastMouseX = 0, lastMouseY = 0, backspaceCount = 0, lastEmotion = "";
-        
         let chatHistory = [];
+
+        // Prompt 設定
+        const PROMPT_STRICT_GRADING = `
+        你現在是一位電腦科學專家。請對學生的題目與代碼進行評分。
+        【評分量表 (1-5分)】
+        5分 (優秀): 邏輯完美，考慮了邊界情況，代碼簡潔且有註解。
+        4分 (良好): 功能正確，但代碼可以更優化，或題目敘述不夠精確。
+        3分 (尚可): 能執行但有邏輯漏洞，或題目太過簡單。
+        2分 (待加強): 可能有部分錯誤。
+        1分 (很糟): 語法錯誤無法執行，或題目與代碼不符。
+        請務必嚴格評分，不要給同情分，但是語氣可以溫和，給出有建設性的建議。請回傳 JSON 格式。
+        `;
+        const PROMPT_THERAPY_STYLE = `使用者壓力指數過高 (Stress Level > 85%)，處於焦慮狀態。
+        請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。
+        提醒他稍微休息一下，準備好了再繼續學習就好了，大家都會碰到瓶頸之類的。
+        請用繁體中文。`;
 
         function loginSystem() {
             const id = document.getElementById('student-id-input').value.trim();
@@ -388,6 +439,7 @@ else:
             } catch(e) { return "連線錯誤"; }
         }
 
+        // 單次呼叫 (給治療/評分用)
         async function callGemini(userText, systemPrompt) {
             if(!GAS_URL.startsWith("http")) return "API URL Error";
             const fullPrompt = systemPrompt + "\n\n" + userText;
@@ -425,7 +477,6 @@ else:
         async function triggerTherapy() {
             if(isPaused) return; isPaused = true;
             document.getElementById('therapy-overlay').style.display='flex';
-            // 修正：使用全域常數 PROMPT_THERAPY_STYLE，而不是在函數內手動寫死且斷行錯誤
             const r = await callGemini("Alert", PROMPT_THERAPY_STYLE);
             const txt = document.getElementById('therapy-text');
             txt.innerText = "";
