@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Code Nexus - Enhanced Learning</title>
+    <title>Code Nexus - Context Aware AI</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -13,7 +13,7 @@
         :root { --bg-color: #050505; --panel-bg: #101010; --accent: #00ff9d; --accent-dim: #005533; --danger: #ff3333; --warning: #ffcc00; --text: #e0e0e0; --border: #333; }
         body { background: var(--bg-color); color: var(--text); font-family: 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* === 左側面板 (固定寬度) === */
+        /* === 左側面板 === */
         .panel-left { 
             width: 320px; min-width: 320px; 
             background: var(--panel-bg); border-right: 1px solid var(--border); 
@@ -66,8 +66,8 @@
         .btn-action { background: var(--accent-dim); color: white; border: 1px solid var(--accent); padding: 8px 20px; cursor: pointer; border-radius: 4px; flex: 0 0 auto; }
         .btn-action:hover { background: var(--accent); color: black; }
 
-        /* ★ 新增：影片容器樣式 */
-        .video-wrapper { position: relative; padding-bottom: 56.25%; /* 16:9 ratio */ height: 0; overflow: hidden; margin-bottom: 15px; border: 1px solid #444; border-radius: 8px; }
+        /* 影片容器樣式 */
+        .video-wrapper { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; margin-bottom: 15px; border: 1px solid #444; border-radius: 8px; }
         .video-wrapper iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .qa-section { background: #1a1a1a; padding: 15px; border-radius: 6px; margin-top: 10px; border-left: 3px solid #0099ff; }
 
@@ -149,8 +149,8 @@
                     <div id="youtube-player"></div>
                 </div>
 
-                <p>影片重點整理：</p>
-                <pre style="background:#222; padding:10px; color:#aaa; margin-top:0;">
+                <p id="material-summary">影片重點整理：Python 的 if-else 結構可以用來做決策。</p>
+                <pre id="material-code" style="background:#222; padding:10px; color:#aaa; margin-top:0;">
 score = 80
 if score >= 60:
     print("Pass")
@@ -161,10 +161,10 @@ else:
                 <div class="qa-section">
                     <h4 style="margin-top:0; color:#0099ff;">🙋‍♂️ 對影片有疑問？</h4>
                     <div style="display:flex; gap:10px;">
-                        <input id="material-question" placeholder="例如：為什麼要縮排？" onkeypress="if(event.key==='Enter') sendMaterialQuestion()">
+                        <input id="material-question" placeholder="例如：為什麼這裡是 80 分？" onkeypress="if(event.key==='Enter') sendMaterialQuestion()">
                         <button class="btn-action" style="background:#004466; border-color:#0099ff;" onclick="sendMaterialQuestion()">提問</button>
                     </div>
-                    <small style="color:#666;">您的提問將會記錄並傳送給 AI 助教進行即時解惑。</small>
+                    <small style="color:#666;">您的提問將會結合上方教材內容傳送給 AI。</small>
                 </div>
 
                 <hr style="border-color:#333; margin:20px 0;">
@@ -252,13 +252,10 @@ else:
         let stressScore = 0, tabSwitchCount = 0, faceMissingDuration = 0, learningStartTime = 0;
         let mouseDist = 0, lastMouseX = 0, lastMouseY = 0, backspaceCount = 0, lastEmotion = "";
         let chatHistory = [];
-        
-        // ★ 新增：YouTube 與計時變數
         let ytPlayer = null;
         let readTimerInterval = null;
         let readSeconds = 0;
 
-        // Prompt 設定
         const PROMPT_STRICT_GRADING = `
         你現在是一位電腦科學專家。請對學生的題目與代碼進行評分。
         【評分量表 (1-5分)】
@@ -269,68 +266,26 @@ else:
         1分 (很糟): 語法錯誤無法執行，或題目與代碼不符。
         請務必嚴格評分，不要給同情分，但是語氣可以溫和，給出有建設性的建議。請回傳 JSON 格式。
         `;
-        const PROMPT_THERAPY_STYLE = `使用者壓力指數過高 (Stress Level > 85%)，處於焦慮狀態。
-        請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。
-        提醒他稍微休息一下，準備好了再繼續學習就好了，大家都會碰到瓶頸之類的。
-        請用繁體中文。`;
+        const PROMPT_THERAPY_STYLE = `使用者壓力指數過高。請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。請用繁體中文。`;
 
-        // ★ 新增：YouTube API 載入回調
+        // YouTube API & Timer Logic
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('youtube-player', {
                 height: '100%',
                 width: '100%',
-                videoId: 'PqFKRqpHrjw', // 這裡放你的影片 ID (目前是 Python Tutorial)
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
+                videoId: 'PqFKRqpHrjw',
+                events: { 'onStateChange': onPlayerStateChange }
             });
         }
-
-        // ★ 新增：影片狀態監聽
         function onPlayerStateChange(event) {
             let stateStr = "";
             switch(event.data) {
-                case YT.PlayerState.PLAYING:
-                    stateStr = "VIDEO_PLAY";
-                    startReadTimer();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    stateStr = "VIDEO_PAUSE";
-                    stopReadTimer();
-                    break;
-                case YT.PlayerState.ENDED:
-                    stateStr = "VIDEO_END";
-                    stopReadTimer();
-                    break;
+                case YT.PlayerState.PLAYING: stateStr = "VIDEO_PLAY"; startReadTimer(); break;
+                case YT.PlayerState.PAUSED: stateStr = "VIDEO_PAUSE"; stopReadTimer(); break;
+                case YT.PlayerState.ENDED: stateStr = "VIDEO_END"; stopReadTimer(); break;
             }
             if(stateStr) log('ACT', `${stateStr} at ${Math.floor(ytPlayer.getCurrentTime())}s`);
         }
-
-        // ★ 新增：教材區提問功能
-        async function sendMaterialQuestion() {
-            const input = document.getElementById('material-question');
-            const q = input.value;
-            if(!q) return;
-            
-            log('ACT', `ASK_QA: ${q}`); // 記錄動作
-            
-            // 透過聊天室發送，但加上前綴讓 AI 知道這是針對教材
-            const aiPrompt = `[學生針對教材影片提問]：${q}\n請簡單解釋這個概念，並舉一個生活例子。`;
-            
-            // 顯示在聊天室
-            const box = document.getElementById('chat-msgs');
-            const div = document.createElement('div'); div.className="msg user"; div.innerText=`[教材提問] ${q}`;
-            box.appendChild(div); box.scrollTop=box.scrollHeight;
-            
-            // 呼叫 AI
-            const r = await callGeminiWithHistory(aiPrompt, "你是一個 Python 助教，請回答學生的問題。");
-            typeWriterMsg('ai', r);
-            
-            input.value = ""; // 清空輸入框
-            alert("助教已收到問題，請查看右下角聊天室！");
-        }
-
-        // ★ 新增：計時器邏輯
         function startReadTimer() {
             if(readTimerInterval) return;
             readTimerInterval = setInterval(() => {
@@ -342,6 +297,44 @@ else:
         }
         function stopReadTimer() {
             if(readTimerInterval) { clearInterval(readTimerInterval); readTimerInterval = null; }
+        }
+
+        // ★★★ 核心修改：動態抓取教材內容並發送 ★★★
+        async function sendMaterialQuestion() {
+            const input = document.getElementById('material-question');
+            const q = input.value;
+            if(!q) return;
+            
+            // 1. 動態抓取 HTML 上面的內容 (這樣你就不用手動在 JS 裡更新內容了)
+            const materialSummary = document.getElementById('material-summary').innerText;
+            const materialCode = document.getElementById('material-code').innerText;
+            
+            log('ACT', `ASK_QA: ${q}`); 
+
+            // 2. 組合 Prompt (Context Injection)
+            const aiPrompt = `
+            [系統環境] 學生正在觀看教學影片，該頁面的重點整理如下：
+            ---
+            ${materialSummary}
+            ---
+            範例程式碼：
+            ${materialCode}
+            ---
+            [學生提問]：${q}
+            請根據上述提供的「重點整理」與「範例程式碼」來回答學生的問題。
+            如果問題與程式碼中的變數(如 score)有關，請明確引用代碼解釋。
+            `;
+            
+            // 3. 顯示在聊天室
+            const box = document.getElementById('chat-msgs');
+            const div = document.createElement('div'); div.className="msg user"; div.innerText=`[教材提問] ${q}`;
+            box.appendChild(div); box.scrollTop=box.scrollHeight;
+            
+            // 4. 發送
+            const r = await callGeminiWithHistory(aiPrompt, "你是一個 Python 助教，請回答學生的問題。");
+            typeWriterMsg('ai', r);
+            
+            input.value = ""; 
         }
 
         function loginSystem() {
@@ -380,9 +373,9 @@ else:
             document.addEventListener('keydown', (e) => { if(e.key === 'Backspace') backspaceCount++; });
 
             setInterval(() => { tabSwitchCount = 0; }, 5000); 
-            typeWriterMsg('ai', `你好，我是你的 AI 助教。請先觀看影片，有問題可以在影片下方提問。`);
+            typeWriterMsg('ai', `你好，我是你的 AI 助教。請觀看影片，有不懂的地方可以直接在教材下方提問。`);
             learningStartTime = Date.now();
-            startReadTimer(); // 預設進入頁面開始計時
+            startReadTimer(); 
         }
 
         async function monitorLoop() {
@@ -406,7 +399,6 @@ else:
                     if(faceMissingDuration > 3) document.getElementById('face-lock-overlay').style.display = 'flex';
                 }
             }
-
             if(mouseDist > 4000) { actDelta += 10; status = "滑鼠焦慮"; statusClass = "val bad"; log('ACT', `Mouse Jitter`); }
             else if(backspaceCount > 10) { actDelta += 10; status = "鍵盤焦慮"; statusClass = "val bad"; log('ACT', `Keyboard Rage`); }
             else if(tabSwitchCount > 4) { actDelta += 10; status = "頻繁切換"; statusClass = "val warn"; log('ACT', 'Frequent Tab Switching'); }
@@ -459,16 +451,11 @@ else:
             const dynamicPrompt = `
             [System Instruction]
             你現在是 Code Nexus 的蘇格拉底式程式導師。
-            【當前狀態】
-            - 階段：${context.phase}
-            - 壓力：${context.stress}%
-            - 代碼草稿：${context.currentCode}
-            - 題目構想：${context.currentProb}
-            【指導原則】
-            1. 記住之前的對話。
-            2. 若學生卡在擬題，請提供 2-3 個「大學生生活情境」來啟發他，勿直接給答案。
-            3. 若代碼有錯，請指出邏輯漏洞引導思考。
-            4. 回答簡短(100字內)，繁體中文。
+            當前階段：${context.phase}
+            壓力指數：${context.stress}%
+            學生代碼：${context.currentCode}
+            學生題目：${context.currentProb}
+            回答簡短(100字內)，繁體中文。
             `;
 
             const r = await callGeminiWithHistory(v, dynamicPrompt);
@@ -532,7 +519,7 @@ else:
         async function triggerTherapy() {
             if(isPaused) return; isPaused = true;
             document.getElementById('therapy-overlay').style.display='flex';
-            if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); // 暫停影片
+            if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
             const r = await callGemini("Alert", PROMPT_THERAPY_STYLE);
             const txt = document.getElementById('therapy-text');
             txt.innerText = "";
@@ -552,8 +539,8 @@ else:
         }
         function finishLearning() {
             const sec = (Date.now() - learningStartTime)/1000;
-            if(sec < 5) { stressScore += 20; typeWriterMsg('ai', '讀太快了！影片看完了嗎？'); return; }
-            if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); // 切換時自動暫停
+            if(sec < 5) { stressScore += 20; typeWriterMsg('ai', '讀太快了！請專心看完影片。'); return; }
+            if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
             log('LN',`完成 - 閱讀時長: ${readSeconds}s`); 
             switchPhase('posing');
         }
