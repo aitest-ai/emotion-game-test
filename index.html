@@ -2,11 +2,11 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Code Nexus</title>
-    <!-- 引入核心庫 -->
+    <title>Code Nexus - Enhanced Learning</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     
     <style>
         /* === 全局基礎設定 === */
@@ -30,61 +30,35 @@
         #log-box { flex: 1 1 auto; background: #000; padding: 5px; font-family: monospace; font-size: 0.75em; color: #888; overflow-y: auto; border: 1px solid #333; }
         .log-entry { margin-bottom: 2px; border-bottom: 1px solid #222; padding-bottom: 2px; }
 
-        /* === 右側面板 (關鍵佈局修正) === */
+        /* === 右側面板 === */
         .panel-right { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; /* 垂直排列 */
-            height: 100vh; /* 佔滿全高 */
-            overflow: hidden; /* 禁止整體捲動 */
-            padding: 20px; 
-            box-sizing: border-box; 
+            flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; padding: 20px; box-sizing: border-box; 
         }
         
-        /* 1. 上方分頁標籤 */
+        /* 上方分頁標籤 */
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex: 0 0 auto; }
         .tab-btn { background: #222; border: 1px solid #444; color: #aaa; padding: 8px 15px; cursor: pointer; border-radius: 4px; transition: 0.3s; }
         .tab-btn.active { background: var(--accent-dim); color: white; border-color: var(--accent); }
 
-        /* 2. 中間內容區 (自動填滿剩餘空間，內部捲動) */
+        /* 中間內容區 */
         .content-area { 
-            display: none; 
-            flex-direction: column; 
-            flex: 1; /* 自動佔用剩餘空間 */
-            min-height: 0; /* ★ 關鍵：防止內容過長撐開父容器 */
-            overflow-y: auto; /* 內容過多時顯示卷軸 */
-            padding-right: 5px; 
-            margin-bottom: 10px; 
+            display: none; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; padding-right: 5px; margin-bottom: 10px; 
         }
         .content-area.active { display: flex; }
 
-        /* 3. 底部聊天室 (強制固定高度) */
+        /* 底部聊天室 */
         #chat-panel { 
-            flex: 0 0 200px; /* 固定高度 200px，禁止縮放 */
-            height: 200px;   /* 明確指定高度 */
-            border-top: 1px solid #333; 
-            background: #080808; 
-            display: flex; 
-            flex-direction: column; 
-            padding: 10px; 
-            box-sizing: border-box;
-            overflow: hidden;
+            flex: 0 0 200px; height: 200px; border-top: 1px solid #333; background: #080808; 
+            display: flex; flex-direction: column; padding: 10px; box-sizing: border-box; overflow: hidden; 
         }
-        #chat-msgs { 
-            flex: 1; /* 佔滿聊天室內部空間 */
-            overflow-y: auto; /* 訊息過多時內部捲動 */
-            margin-bottom: 10px; 
-            min-height: 0; /* ★ 關鍵 */
-        }
+        #chat-msgs { flex: 1; overflow-y: auto; margin-bottom: 10px; min-height: 0; }
 
-        /* 其他元件樣式 */
+        /* 元件樣式 */
         input, textarea, select { width: 100%; background: #1a1a1a; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px; }
         textarea { resize: vertical; font-family: monospace; }
         
         .editor-container { 
-            flex: 0 0 250px; /* 固定編輯器高度 */
-            display: flex; flex-direction: column; 
-            border: 1px solid #333; border-radius: 6px; overflow: hidden; margin-bottom: 10px; 
+            flex: 0 0 250px; display: flex; flex-direction: column; border: 1px solid #333; border-radius: 6px; overflow: hidden; margin-bottom: 10px; 
         }
         #code-editor { flex: 1; background: #0c0c0c; color: #ddd; padding: 15px; border:none; outline:none; font-family: 'Consolas', monospace; resize:none; font-size: 14px; }
         #output { height: 100px; background: #000; color: #aaa; padding: 10px; font-family: monospace; border-top: 1px solid #333; overflow-y: auto; white-space: pre-wrap; }
@@ -92,20 +66,20 @@
         .btn-action { background: var(--accent-dim); color: white; border: 1px solid var(--accent); padding: 8px 20px; cursor: pointer; border-radius: 4px; flex: 0 0 auto; }
         .btn-action:hover { background: var(--accent); color: black; }
 
+        /* ★ 新增：影片容器樣式 */
+        .video-wrapper { position: relative; padding-bottom: 56.25%; /* 16:9 ratio */ height: 0; overflow: hidden; margin-bottom: 15px; border: 1px solid #444; border-radius: 8px; }
+        .video-wrapper iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .qa-section { background: #1a1a1a; padding: 15px; border-radius: 6px; margin-top: 10px; border-left: 3px solid #0099ff; }
+
         .score-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
         .score-table td, .score-table th { border: 1px solid #333; padding: 8px; text-align: center; vertical-align: middle; }
         .score-table th { background: #222; color: var(--accent); width: 20%; }
         .score-table td.comment-cell { text-align: left; vertical-align: top; white-space: pre-wrap; height: 80px;}
 
-        /* 訊息樣式 & Markdown 修正 */
+        /* 訊息樣式 */
         .msg { padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9em; max-width: 90%; word-wrap: break-word; line-height: 1.5; }
         .msg.ai { color: var(--accent); background: #112211; border-left: 3px solid var(--accent); align-self: flex-start; }
         .msg.user { color: #fff; background: #004455; align-self: flex-end; }
-        .msg p { margin: 0; padding: 0; display: inline-block; }
-        .msg strong { color: #fff; font-weight: bold; }
-        .msg code { background: #333; padding: 2px 4px; border-radius: 3px; font-family: monospace; color: #ff7b72; font-size: 0.9em;}
-        .msg pre { background: #222; padding: 8px; border-radius: 4px; overflow-x: auto; margin: 5px 0; display: block;}
-        .msg pre code { background: transparent; padding: 0; color: #ddd; }
         .typing-cursor::after { content: '▋'; animation: blink 1s infinite; color: var(--accent); }
         @keyframes blink { 0%, 100% {opacity: 1;} 50% {opacity: 0;} }
 
@@ -119,7 +93,6 @@
 </head>
 <body>
 
-    <!-- 1. 登入層 -->
     <div id="login-overlay" class="overlay" style="display:flex;">
         <div class="login-box">
             <h2 style="color:var(--accent);">CODE NEXUS</h2>
@@ -129,14 +102,12 @@
         </div>
     </div>
 
-    <!-- 2. 坐姿鎖定層 -->
     <div id="face-lock-overlay" class="overlay">
         <div class="lock-icon">⚠️</div>
         <h2 style="color:var(--warning);">系統暫停</h2>
         <p style="color:#ccc;">偵測不到臉部，請回到座位。</p>
     </div>
 
-    <!-- 3. 治療模式層 -->
     <div id="therapy-overlay" class="overlay">
         <h2 style="color:var(--danger)">⚠️ 壓力過載</h2>
         <p>偵測到高度焦慮。請休息。</p>
@@ -144,7 +115,6 @@
         <button class="btn-action" id="btn-resume" onclick="stopTherapy()" style="opacity:0;">繼續任務</button>
     </div>
 
-    <!-- 左側面板 -->
     <div class="panel-left">
         <div class="header">NEXUS</div>
         <div id="display-student-id" style="text-align:center; color:#888; margin-bottom:10px;">未登入</div>
@@ -159,9 +129,7 @@
         <div id="log-box"></div>
     </div>
 
-    <!-- 右側面板 -->
     <div class="panel-right">
-        <!-- 分頁標籤 -->
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchPhase('learning')">1. 學習 (LN)</button>
             <button class="tab-btn" onclick="switchPhase('posing')">2. 擬題 (PP)</button>
@@ -170,29 +138,45 @@
             <button class="tab-btn" onclick="switchPhase('reflection')">5. 反思 (RF)</button>
         </div>
 
-        <!-- 1. 學習區 -->
         <div id="phase-learning" class="content-area active">
             <div style="background:#151515; padding:20px; border-radius:8px; border-left:4px solid var(--accent);">
-                <h2>📝 單元：Python 條件判斷</h2>
-                <p>請閱讀以下教材：</p>
-                <pre style="background:#222; padding:10px; color:#aaa;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>🎬 單元影片：Python 條件判斷</h2>
+                    <span id="reading-timer" style="color:#888; font-family:monospace;">00:00</span>
+                </div>
+                
+                <div class="video-wrapper">
+                    <div id="youtube-player"></div>
+                </div>
+
+                <p>影片重點整理：</p>
+                <pre style="background:#222; padding:10px; color:#aaa; margin-top:0;">
 score = 80
 if score >= 60:
     print("Pass")
 else:
     print("Fail")
                 </pre>
-                <button class="btn-action" onclick="finishLearning()">✅ 閱讀完畢</button>
+
+                <div class="qa-section">
+                    <h4 style="margin-top:0; color:#0099ff;">🙋‍♂️ 對影片有疑問？</h4>
+                    <div style="display:flex; gap:10px;">
+                        <input id="material-question" placeholder="例如：為什麼要縮排？" onkeypress="if(event.key==='Enter') sendMaterialQuestion()">
+                        <button class="btn-action" style="background:#004466; border-color:#0099ff;" onclick="sendMaterialQuestion()">提問</button>
+                    </div>
+                    <small style="color:#666;">您的提問將會記錄並傳送給 AI 助教進行即時解惑。</small>
+                </div>
+
+                <hr style="border-color:#333; margin:20px 0;">
+                <button class="btn-action" onclick="finishLearning()">✅ 學習完畢，進入擬題</button>
             </div>
         </div>
 
-        <!-- 2. 擬題區 (含 placeholder 修正) -->
         <div id="phase-posing" class="content-area">
             <label>題目名稱</label><input id="pp-title" placeholder="例如：判斷奇偶數">
             <label>題目敘述</label><textarea id="pp-desc" style="height:80px;"></textarea>
             <label>參考解答代碼</label>
             <div class="editor-container">
-                <!-- 修正：只使用 placeholder -->
                 <textarea id="code-editor" placeholder="print('Hello World')"></textarea>
                 <div id="output">等待執行...</div>
             </div>
@@ -202,7 +186,6 @@ else:
             </div>
         </div>
 
-        <!-- 3. 評同儕區 -->
         <div id="phase-human-review" class="content-area">
             <h3>👥 評分其他同學的題目</h3>
             <button class="btn-action" onclick="loadPeerProblem()" style="background:#444; margin-bottom:15px;">📥 載入同儕挑戰</button>
@@ -226,7 +209,6 @@ else:
             </div>
         </div>
 
-        <!-- 4. AI 評我區 -->
         <div id="phase-ai-review" class="content-area">
             <h3>🤖 AI 評分你的題目</h3>
             <button class="btn-action" onclick="triggerAIReview()">啟動 AI 評分</button>
@@ -243,14 +225,12 @@ else:
             </div>
         </div>
 
-        <!-- 5. 反思區 -->
         <div id="phase-reflection" class="content-area">
             <h3>🤔 學習反思</h3>
             <textarea id="rf-content" style="height:150px;"></textarea>
             <button class="btn-action" onclick="submitAll()">✅ 提交所有成果</button>
         </div>
 
-        <!-- 聊天室 (固定底部) -->
         <div id="chat-panel">
             <div id="chat-msgs"></div>
             <div style="display:flex; gap:10px;">
@@ -272,6 +252,11 @@ else:
         let stressScore = 0, tabSwitchCount = 0, faceMissingDuration = 0, learningStartTime = 0;
         let mouseDist = 0, lastMouseX = 0, lastMouseY = 0, backspaceCount = 0, lastEmotion = "";
         let chatHistory = [];
+        
+        // ★ 新增：YouTube 與計時變數
+        let ytPlayer = null;
+        let readTimerInterval = null;
+        let readSeconds = 0;
 
         // Prompt 設定
         const PROMPT_STRICT_GRADING = `
@@ -288,6 +273,76 @@ else:
         請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。
         提醒他稍微休息一下，準備好了再繼續學習就好了，大家都會碰到瓶頸之類的。
         請用繁體中文。`;
+
+        // ★ 新增：YouTube API 載入回調
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('youtube-player', {
+                height: '100%',
+                width: '100%',
+                videoId: 'PqFKRqpHrjw', // 這裡放你的影片 ID (目前是 Python Tutorial)
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        // ★ 新增：影片狀態監聽
+        function onPlayerStateChange(event) {
+            let stateStr = "";
+            switch(event.data) {
+                case YT.PlayerState.PLAYING:
+                    stateStr = "VIDEO_PLAY";
+                    startReadTimer();
+                    break;
+                case YT.PlayerState.PAUSED:
+                    stateStr = "VIDEO_PAUSE";
+                    stopReadTimer();
+                    break;
+                case YT.PlayerState.ENDED:
+                    stateStr = "VIDEO_END";
+                    stopReadTimer();
+                    break;
+            }
+            if(stateStr) log('ACT', `${stateStr} at ${Math.floor(ytPlayer.getCurrentTime())}s`);
+        }
+
+        // ★ 新增：教材區提問功能
+        async function sendMaterialQuestion() {
+            const input = document.getElementById('material-question');
+            const q = input.value;
+            if(!q) return;
+            
+            log('ACT', `ASK_QA: ${q}`); // 記錄動作
+            
+            // 透過聊天室發送，但加上前綴讓 AI 知道這是針對教材
+            const aiPrompt = `[學生針對教材影片提問]：${q}\n請簡單解釋這個概念，並舉一個生活例子。`;
+            
+            // 顯示在聊天室
+            const box = document.getElementById('chat-msgs');
+            const div = document.createElement('div'); div.className="msg user"; div.innerText=`[教材提問] ${q}`;
+            box.appendChild(div); box.scrollTop=box.scrollHeight;
+            
+            // 呼叫 AI
+            const r = await callGeminiWithHistory(aiPrompt, "你是一個 Python 助教，請回答學生的問題。");
+            typeWriterMsg('ai', r);
+            
+            input.value = ""; // 清空輸入框
+            alert("助教已收到問題，請查看右下角聊天室！");
+        }
+
+        // ★ 新增：計時器邏輯
+        function startReadTimer() {
+            if(readTimerInterval) return;
+            readTimerInterval = setInterval(() => {
+                readSeconds++;
+                const m = Math.floor(readSeconds / 60).toString().padStart(2, '0');
+                const s = (readSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('reading-timer').innerText = `學習時間: ${m}:${s}`;
+            }, 1000);
+        }
+        function stopReadTimer() {
+            if(readTimerInterval) { clearInterval(readTimerInterval); readTimerInterval = null; }
+        }
 
         function loginSystem() {
             const id = document.getElementById('student-id-input').value.trim();
@@ -325,8 +380,9 @@ else:
             document.addEventListener('keydown', (e) => { if(e.key === 'Backspace') backspaceCount++; });
 
             setInterval(() => { tabSwitchCount = 0; }, 5000); 
-            typeWriterMsg('ai', `你好，我是你的 AI 助教。我會根據你的進度提供建議。`);
+            typeWriterMsg('ai', `你好，我是你的 AI 助教。請先觀看影片，有問題可以在影片下方提問。`);
             learningStartTime = Date.now();
+            startReadTimer(); // 預設進入頁面開始計時
         }
 
         async function monitorLoop() {
@@ -439,7 +495,6 @@ else:
             } catch(e) { return "連線錯誤"; }
         }
 
-        // 單次呼叫 (給治療/評分用)
         async function callGemini(userText, systemPrompt) {
             if(!GAS_URL.startsWith("http")) return "API URL Error";
             const fullPrompt = systemPrompt + "\n\n" + userText;
@@ -477,6 +532,7 @@ else:
         async function triggerTherapy() {
             if(isPaused) return; isPaused = true;
             document.getElementById('therapy-overlay').style.display='flex';
+            if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); // 暫停影片
             const r = await callGemini("Alert", PROMPT_THERAPY_STYLE);
             const txt = document.getElementById('therapy-text');
             txt.innerText = "";
@@ -496,8 +552,10 @@ else:
         }
         function finishLearning() {
             const sec = (Date.now() - learningStartTime)/1000;
-            if(sec < 5) { stressScore += 20; typeWriterMsg('ai', '讀太快了！請專心。'); return; }
-            log('LN','完成'); switchPhase('posing');
+            if(sec < 5) { stressScore += 20; typeWriterMsg('ai', '讀太快了！影片看完了嗎？'); return; }
+            if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); // 切換時自動暫停
+            log('LN',`完成 - 閱讀時長: ${readSeconds}s`); 
+            switchPhase('posing');
         }
         function finishPosing() {
             const t = document.getElementById('pp-title').value;
@@ -535,7 +593,7 @@ else:
             const r = document.getElementById('rf-content').value;
             if(!r) return alert("請寫反思");
             sessionData.reflection = r;
-            await sendToGAS({ type:'FULL_RECORD', studentId, ...sessionData });
+            await sendToGAS({ type:'FULL_RECORD', studentId, ...sessionData, readingTime: readSeconds });
             alert("資料上傳成功！");
         }
         function typeWriterMsg(role, text) {
