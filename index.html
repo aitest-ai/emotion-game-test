@@ -2,11 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Code Nexus - Ultimate Full Version</title>
+    <title>Code Nexus - Ultimate Full Version (Fixed)</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
     
     <style>
         /* === 全局基礎設定 === */
@@ -127,7 +126,9 @@
             <button class="tab-btn active" onclick="switchPhase('learning')">1. 學習 (LN)</button>
             <button class="tab-btn" onclick="switchPhase('exercise')">2. 練習 (EX)</button>
             <button class="tab-btn" onclick="switchPhase('posing')">3. 擬題 (PP)</button>
-            <button class="tab-btn" onclick="switchPhase('ai-review')">4. AI 評我 (PA)</button> <button class="tab-btn" onclick="switchPhase('human-review')">5. 評同儕 (HR)</button> <button class="tab-btn" onclick="switchPhase('reflection')">6. 反思 (RF)</button>
+            <button class="tab-btn" onclick="switchPhase('ai-review')">4. AI 評我 (PA)</button> 
+            <button class="tab-btn" onclick="switchPhase('human-review')">5. 評同儕 (HR)</button> 
+            <button class="tab-btn" onclick="switchPhase('reflection')">6. 反思 (RF)</button>
         </div>
 
         <div id="phase-learning" class="content-area active">
@@ -286,13 +287,9 @@
         // ===============================================
         
         const LESSON_CONFIG = {
-            // 1. 影片 ID
-            youtubeId: "90HudQeMNbw", 
-            // 2. 標題
+            youtubeId: "onrMi-D7lvY", 
             title: "🎬 單元影片：Python 條件判斷與邏輯",
-            // 3. 重點整理
             summary: "影片重點：Python 使用 if, elif, else 來進行條件判斷。縮排 (Indentation) 非常重要，決定了程式碼區塊的範圍。",
-            // 4. 範例代碼
             code: `score = 80
 if score >= 90:
     print("Grade A")
@@ -306,7 +303,7 @@ else:
         // 系統核心代碼 (Core System Logic)
         // ===============================================
 
-        // 請填入您的 Google Apps Script URL (v18.0)
+        // 請確認您的 Google Apps Script URL 是 v18.0 版
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzkAH1B96FAMUhSf-n6ET5x8h8BXtXpxgIApmQraqk39rIZOhgUuOi94zmy1AuZMXAqXg/exec"; 
         
         let studentId = "";
@@ -314,7 +311,7 @@ else:
         let isFaceLoaded = false, isPaused = false, pyodide = null;
         let sessionData = { probTitle:"", probDesc:"", probCode:"", aiScores:[], aiComment:"", reflection:"" };
         let currentPeerProblemTitle = "";
-        let currentPeerRefCode = ""; // 暫存同儕的解答(隱藏用)
+        let currentPeerRefCode = ""; 
         let stressScore = 0, tabSwitchCount = 0, faceMissingDuration = 0, learningStartTime = 0;
         let mouseDist = 0, lastMouseX = 0, lastMouseY = 0, backspaceCount = 0, lastEmotion = "";
         let chatHistory = [];
@@ -322,36 +319,40 @@ else:
         let readTimerInterval = null;
         let readSeconds = 0;
 
-        // 練習題相關變數
         let generatedProblems = null; 
         let currentDifficulty = ''; 
 
-        const PROMPT_STRICT_GRADING = `
-        你現在是一位電腦科學專家。請對學生的題目與代碼進行評分。
-        【評分量表 (1-5分)】
-        5分 (優秀): 邏輯完美，考慮了邊界情況，代碼簡潔且有註解。
-        4分 (良好): 功能正確，但代碼可以更優化，或題目敘述不夠精確。
-        3分 (尚可): 能執行但有邏輯漏洞，或題目太過簡單。
-        2分 (待加強): 可能有部分錯誤。
-        1分 (很糟): 語法錯誤無法執行，或題目與代碼不符。
-        請務必嚴格評分，不要給同情分，但是語氣可以溫和，給出有建設性的建議。請回傳 JSON 格式。
-        `;
-        const PROMPT_THERAPY_STYLE = `使用者壓力指數過高 (Stress Level > 85%)，處於焦慮狀態。
-        請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。
-        提醒他稍微休息一下，準備好了再繼續學習就好了，大家都會碰到瓶頸之類的。
-        請用繁體中文。`;
+        const PROMPT_STRICT_GRADING = `你現在是一位電腦科學專家。請對學生的題目與代碼進行評分(1-5分)。回傳 JSON。`;
+        const PROMPT_THERAPY_STYLE = `使用者壓力指數過高。請講笑話或鼓勵。繁體中文。`;
 
-        // 初始化：填入教材內容
         (function initLessonContent() {
             document.getElementById('lesson-title').innerText = LESSON_CONFIG.title;
             document.getElementById('material-summary').innerText = LESSON_CONFIG.summary;
             document.getElementById('material-code').innerText = LESSON_CONFIG.code;
         })();
 
-        // YouTube API & Timer Logic
+        // ===============================================
+        // YouTube API Fix (動態載入，解決 API Race Condition)
+        // ===============================================
+        
         function onYouTubeIframeAPIReady() {
-            ytPlayer = new YT.Player('youtube-player', { height: '100%', width: '100%', videoId: LESSON_CONFIG.youtubeId, events: { 'onStateChange': onPlayerStateChange } });
+            ytPlayer = new YT.Player('youtube-player', {
+                height: '100%',
+                width: '100%',
+                videoId: LESSON_CONFIG.youtubeId,
+                playerVars: { 'playsinline': 1, 'rel': 0 },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
         }
+
+        // 動態載入腳本
+        (function loadYoutubeAPI() {
+            var tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            var firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        })();
+
         function onPlayerStateChange(event) {
             let stateStr = "";
             switch(event.data) {
@@ -373,7 +374,7 @@ else:
         function stopReadTimer() { if(readTimerInterval) { clearInterval(readTimerInterval); readTimerInterval = null; } }
 
         // ===============================================
-        // Phase 2: AI 練習區邏輯
+        // Phase 2: AI 練習區邏輯 (修正版：提示在下方)
         // ===============================================
         async function generatePracticeProblems() {
             const btn = document.getElementById('btn-gen-ex');
@@ -403,7 +404,7 @@ else:
             document.getElementById('ex-q-title').innerText = `${prob.title} (${level.toUpperCase()})`;
             document.getElementById('ex-q-desc').innerText = prob.desc;
             
-            // ★★★ 修改處：清空編輯器，並將提示顯示在下方 ★★★
+            // ★★★ 修改處：清空編輯器，將提示文字填入下方區域 ★★★
             document.getElementById('ex-code-editor').value = ""; 
             document.getElementById('ex-hint-text').innerText = "💡 提示：" + (prob.hint || "無");
             
@@ -435,7 +436,6 @@ else:
                 fbBox.style.display = 'block';
                 document.getElementById('ex-result-text').innerText = json.feedback;
                 
-                // 存檔
                 await sendToGAS({ type: 'PHASE_2_EXERCISE', studentId, difficulty: currentDifficulty, title: currentProb.title, code: code, passed: json.correct?"PASS":"FAIL", feedback: json.feedback });
 
                 if(json.correct) { fbBox.style.borderColor = "#00ff9d"; nextBtn.style.display = 'inline-block'; log('EX', `Solved ${currentDifficulty} - Correct`); } 
@@ -458,7 +458,7 @@ else:
                     const p = json.problem; 
                     document.getElementById('hr-title').innerText = p.title; 
                     document.getElementById('hr-desc').innerText = p.desc; 
-                    currentPeerRefCode = p.code; // 暫存解答
+                    currentPeerRefCode = p.code; 
                     currentPeerProblemTitle = p.title; 
                     
                     document.getElementById('human-review-container').style.display = 'block';
@@ -497,7 +497,7 @@ else:
         }
 
         // ===============================================
-        // 其他階段函式 (學習、擬題、AI評分、反思)
+        // 其他階段與系統核心
         // ===============================================
 
         async function finishLearning() {
@@ -514,7 +514,7 @@ else:
             sessionData.probTitle = t; sessionData.probDesc = document.getElementById('pp-desc').value; sessionData.probCode = c;
             await sendToGAS({ type: 'PHASE_3_POSING', studentId, probTitle: t, probDesc: sessionData.probDesc, probCode: c });
             log('PP','暫存並上傳'); 
-            switchPhase('ai-review'); // 擬題完直接進 AI
+            switchPhase('ai-review'); 
         }
 
         async function triggerAIReview() {
@@ -534,10 +534,6 @@ else:
             await sendToGAS({ type:'PHASE_6_REFLECTION', studentId, reflection: r });
             alert("全課程完成！資料已上傳成功！");
         }
-
-        // ===============================================
-        // 系統基礎功能 (登入、FaceAPI、聊天室、Pyodide)
-        // ===============================================
 
         async function sendMaterialQuestion() {
             const input = document.getElementById('material-question'); const q = input.value; if(!q) return;
