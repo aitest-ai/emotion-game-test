@@ -175,6 +175,7 @@
                         <textarea id="ex-code-editor" class="code-area" placeholder="# 在這裡寫下你的程式碼..."></textarea>
                         <div id="ex-output" class="output-area">等待執行...</div>
                     </div>
+                    <p id="ex-hint-text" style="color: #888; font-size: 0.9em; margin-top: 5px; background: #222; padding: 5px; border-radius: 4px;"></p>
                     
                     <div style="display:flex; justify-content:space-between;">
                         <button class="btn-action" style="background:#444;" onclick="runExPython()">▶ 測試執行</button>
@@ -401,7 +402,11 @@ else:
             const prob = generatedProblems[level];
             document.getElementById('ex-q-title').innerText = `${prob.title} (${level.toUpperCase()})`;
             document.getElementById('ex-q-desc').innerText = prob.desc;
-            document.getElementById('ex-code-editor').value = prob.hint || "";
+            
+            // ★★★ 修改處：清空編輯器，並將提示顯示在下方 ★★★
+            document.getElementById('ex-code-editor').value = ""; 
+            document.getElementById('ex-hint-text').innerText = "💡 提示：" + (prob.hint || "無");
+            
             document.getElementById('ex-result-text').innerText = "";
             document.getElementById('ex-feedback').style.display = "none";
         }
