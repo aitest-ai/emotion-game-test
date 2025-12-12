@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Code Nexus - Context Aware AI</title>
+    <title>Code Nexus - Full Featured</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -13,7 +13,7 @@
         :root { --bg-color: #050505; --panel-bg: #101010; --accent: #00ff9d; --accent-dim: #005533; --danger: #ff3333; --warning: #ffcc00; --text: #e0e0e0; --border: #333; }
         body { background: var(--bg-color); color: var(--text); font-family: 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* === 左側面板 === */
+        /* === 左側面板 (固定寬度) === */
         .panel-left { 
             width: 320px; min-width: 320px; 
             background: var(--panel-bg); border-right: 1px solid var(--border); 
@@ -141,7 +141,7 @@
         <div id="phase-learning" class="content-area active">
             <div style="background:#151515; padding:20px; border-radius:8px; border-left:4px solid var(--accent);">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2>🎬 單元影片：Python 條件判斷</h2>
+                    <h2 id="lesson-title">載入教材中...</h2>
                     <span id="reading-timer" style="color:#888; font-family:monospace;">00:00</span>
                 </div>
                 
@@ -149,14 +149,8 @@
                     <div id="youtube-player"></div>
                 </div>
 
-                <p id="material-summary">影片重點整理：Python 的 if-else 結構可以用來做決策。</p>
-                <pre id="material-code" style="background:#222; padding:10px; color:#aaa; margin-top:0;">
-score = 80
-if score >= 60:
-    print("Pass")
-else:
-    print("Fail")
-                </pre>
+                <p id="material-summary">...</p>
+                <pre id="material-code" style="background:#222; padding:10px; color:#aaa; margin-top:0;">...</pre>
 
                 <div class="qa-section">
                     <h4 style="margin-top:0; color:#0099ff;">🙋‍♂️ 對影片有疑問？</h4>
@@ -164,7 +158,7 @@ else:
                         <input id="material-question" placeholder="例如：為什麼這裡是 80 分？" onkeypress="if(event.key==='Enter') sendMaterialQuestion()">
                         <button class="btn-action" style="background:#004466; border-color:#0099ff;" onclick="sendMaterialQuestion()">提問</button>
                     </div>
-                    <small style="color:#666;">您的提問將會結合上方教材內容傳送給 AI。</small>
+                    <small style="color:#666;">您的提問將會結合上方教材內容傳送給 AI 助教。</small>
                 </div>
 
                 <hr style="border-color:#333; margin:20px 0;">
@@ -241,9 +235,31 @@ else:
     </div>
 
     <script>
-        // ================= CONFIG =================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycby0ajJ8Kupuqae0uqDc0uOT0fYXh42s9kM4dfwvIQYZwsaclQAeVMtvc-ebwvYjVVFa/exec"; 
+        // ===============================================
+        // ★★★ 老師設定區 (請改這裡) ★★★
+        // ===============================================
+        
+        const LESSON_CONFIG = {
+            // 1. 影片 ID (Youtube 網址 v= 後面那一串)
+            youtubeId: "qXqWloRfBUw", 
+            
+            // 2. 教材標題
+            title: "🎬 單元影片：撰寫第一支 Python 程式",
 
+            // 3. 影片重點整理 (AI 會讀這裡的內容)
+            summary: "影片重點：學習print文字。",
+            
+            // 4. 範例代碼 (AI 會讀這裡的代碼)
+            code: `
+    print("Hello World")`
+        };
+
+        // ===============================================
+        // 以下為系統核心代碼 (維持完整功能，無需修改)
+        // ===============================================
+
+        const GAS_URL = "https://script.google.com/macros/s/AKfycby0ajJ8Kupuqae0uqDc0uOT0fYXh42s9kM4dfwvIQYZwsaclQAeVMtvc-ebwvYjVVFa/exec"; 
+        
         let studentId = "";
         let currentPhase = 'learning';
         let isFaceLoaded = false, isPaused = false, pyodide = null;
@@ -268,24 +284,42 @@ else:
         `;
         const PROMPT_THERAPY_STYLE = `使用者壓力指數過高。請講一個「非常冷的工程師笑話」或者是「極度溫柔的鼓勵」來轉移他的注意力。請用繁體中文。`;
 
+        // 初始化教材內容 (將設定填入 HTML)
+        (function initLessonContent() {
+            document.getElementById('lesson-title').innerText = LESSON_CONFIG.title;
+            document.getElementById('material-summary').innerText = LESSON_CONFIG.summary;
+            document.getElementById('material-code').innerText = LESSON_CONFIG.code;
+        })();
+
         // YouTube API & Timer Logic
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('youtube-player', {
                 height: '100%',
                 width: '100%',
-                videoId: 'PqFKRqpHrjw',
+                videoId: LESSON_CONFIG.youtubeId, // ★ 自動讀取設定
                 events: { 'onStateChange': onPlayerStateChange }
             });
         }
+
         function onPlayerStateChange(event) {
             let stateStr = "";
             switch(event.data) {
-                case YT.PlayerState.PLAYING: stateStr = "VIDEO_PLAY"; startReadTimer(); break;
-                case YT.PlayerState.PAUSED: stateStr = "VIDEO_PAUSE"; stopReadTimer(); break;
-                case YT.PlayerState.ENDED: stateStr = "VIDEO_END"; stopReadTimer(); break;
+                case YT.PlayerState.PLAYING:
+                    stateStr = "VIDEO_PLAY";
+                    startReadTimer();
+                    break;
+                case YT.PlayerState.PAUSED:
+                    stateStr = "VIDEO_PAUSE";
+                    stopReadTimer();
+                    break;
+                case YT.PlayerState.ENDED:
+                    stateStr = "VIDEO_END";
+                    stopReadTimer();
+                    break;
             }
             if(stateStr) log('ACT', `${stateStr} at ${Math.floor(ytPlayer.getCurrentTime())}s`);
         }
+
         function startReadTimer() {
             if(readTimerInterval) return;
             readTimerInterval = setInterval(() => {
@@ -295,6 +329,7 @@ else:
                 document.getElementById('reading-timer').innerText = `學習時間: ${m}:${s}`;
             }, 1000);
         }
+
         function stopReadTimer() {
             if(readTimerInterval) { clearInterval(readTimerInterval); readTimerInterval = null; }
         }
@@ -305,32 +340,28 @@ else:
             const q = input.value;
             if(!q) return;
             
-            // 1. 動態抓取 HTML 上面的內容 (這樣你就不用手動在 JS 裡更新內容了)
-            const materialSummary = document.getElementById('material-summary').innerText;
-            const materialCode = document.getElementById('material-code').innerText;
-            
+            // ★ 自動從設定檔抓取內容給 AI
             log('ACT', `ASK_QA: ${q}`); 
 
-            // 2. 組合 Prompt (Context Injection)
             const aiPrompt = `
             [系統環境] 學生正在觀看教學影片，該頁面的重點整理如下：
             ---
-            ${materialSummary}
+            ${LESSON_CONFIG.summary}
             ---
             範例程式碼：
-            ${materialCode}
+            ${LESSON_CONFIG.code}
             ---
             [學生提問]：${q}
             請根據上述提供的「重點整理」與「範例程式碼」來回答學生的問題。
-            如果問題與程式碼中的變數(如 score)有關，請明確引用代碼解釋。
+            如果問題與程式碼中的變數有關，請明確引用代碼解釋。
             `;
             
-            // 3. 顯示在聊天室
+            // 顯示在聊天室
             const box = document.getElementById('chat-msgs');
             const div = document.createElement('div'); div.className="msg user"; div.innerText=`[教材提問] ${q}`;
             box.appendChild(div); box.scrollTop=box.scrollHeight;
             
-            // 4. 發送
+            // 發送
             const r = await callGeminiWithHistory(aiPrompt, "你是一個 Python 助教，請回答學生的問題。");
             typeWriterMsg('ai', r);
             
@@ -399,6 +430,7 @@ else:
                     if(faceMissingDuration > 3) document.getElementById('face-lock-overlay').style.display = 'flex';
                 }
             }
+
             if(mouseDist > 4000) { actDelta += 10; status = "滑鼠焦慮"; statusClass = "val bad"; log('ACT', `Mouse Jitter`); }
             else if(backspaceCount > 10) { actDelta += 10; status = "鍵盤焦慮"; statusClass = "val bad"; log('ACT', `Keyboard Rage`); }
             else if(tabSwitchCount > 4) { actDelta += 10; status = "頻繁切換"; statusClass = "val warn"; log('ACT', 'Frequent Tab Switching'); }
